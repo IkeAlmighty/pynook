@@ -1,0 +1,56 @@
+{ print, stdio, stderr, type, int }: import('core')
+
+hello_world: () {
+	print("hello world")
+	stdio('echo "hello world"')
+	stderr("ERROR TEXT!!!")
+}
+
+{
+	"some-key": "some-value",
+	"another-key": "another-value"
+}
+
+Car: (root, wheels, year) {
+	print("the year of this vehicle is " + year)
+
+	drive: (mph) {
+		root.speed: 68
+		"woooohoooooooo"
+
+		# not actually necessary since print returns none
+		ignore print(type(root.speed))
+
+		# ignore is natuarally used very little, as the 
+		# usecase is when a mutator function returns a value
+
+		for el in [1, "hello", "goodbye", 42] {
+			if type(el) == int { el }
+		}
+
+		for el in [55, 66, 77] {
+			if type(el) == int { collect el }
+		}
+
+		# drive.__collection__ now has ["woooohoooooooo", 1, 42, 55]
+	}
+}
+
+
+
+
+# example core function:
+type_int: (root) {
+	# enums can be approximated through
+	# scopes with unique values:
+
+	identifier: 'TYPE_ID_INT'
+	
+	root['==']: (compared_to) {
+		return compared_to.identifier == root.identifier
+	}
+
+}
+
+int: type_int()
+	

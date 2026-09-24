@@ -1,0 +1,141 @@
+
+block := (statement)*
+statement := ('ignore'? (assignment | destructure) ) | expr |  end_ctr_flow | loop | branch | case | default | throw | trycatch) terminator
+
+end_ctr_flow := 'leave' | 'continue' | return | collect
+return := 'return' (assignment | expr)?
+collect := 'collect' (assignment | expr )?
+
+scope := '{' block '}'
+
+list := '[' items? ']'
+set := 'set' '[' items? ']'
+items := item (',' item)*
+item := spread? expr 
+
+throw := 'throw' expr
+trycatch := 'try' scope ('catch' identifier scope)* ('finally' scope)?
+
+# TODO: add support for string as assignment target
+assignment := (string | target) ':' ( def_func | def_root_func | expr )
+target := identifier ( ( '.' identifier ) | subscript )*
+
+destructure := ( destruct_scope  | destruct_list ) ':' expr
+
+destruct_scope := '{' pattern_sequence '}'
+destruct_list := '[' pattern_sequence ']'
+
+pattern_sequence := pattern (',' pattern)*
+pattern := identifier | (identifier ':' pattern_obj)
+pattern_obj := identifier | destruct_scope | destruct_list
+
+loop := while | dowhile | for | forin 
+branch := if | switch
+
+while := 'while' expr scope
+dowhile := 'do' scope 'while' expr
+
+for := 'for' statement ';' expr ';' statement scope
+forin := 'for' identifier 'in' (expr) scope
+
+if := 'if' expr scope elif* else?
+elif := 'elif' expr scope
+else := 'else' scope
+switch := 'switch' expr scope
+case := 'case' literal scope # case is enforced by semantic analysis to only exist as a child of switch
+default := 'default' scope # same as case
+
+def_func := '(' params? ')' scope
+def_root_func := '(' 'root' (',' params)? ')' scope
+params := param (',' param)*
+param := spread? identifier (':' expr)?
+
+expr := infix
+infix := term (op term)* # precedence-parser
+term := spread? postfix
+postfix := primary ( call | subscript | ( '.' identifier ) )*
+primary := literal | identifier | ( '(' expr ')' )
+call := '(' args? ')'
+
+subscript := '[' expr? (':' expr?)?']'
+
+spread := '..'
+op := r'[/-+%*^><=!#]+'
+args := arg (',' arg)*
+arg := spread? expr
+
+literal := int | float | string | boolean | binary | hexadecimal | scope | list | set | 'null' | 'none'
+identifier := r'[a-zA-Z_][0-9a-zA-Z_]*'
+terminator := ',' | ';' | '\n'
+
+int := r'[0-9]+'
+float := int '.' int
+string := r'\".*\"' | r"\'.*\'"
+boolean := 'true' | 'false'
+binary := r'b[0-1]+'
+hexadecimal := r'h[0-9a-fA-F]+'
+
+# some other notes:
+
+# 'leave' stops the execution of the current scope's remaining statements and
+# returns control to the whatever invoked that scope. 
+
+# 'return' stops the execution of the current scope's remaining statements and
+# returns an expr to the corresponding assignment statement
+
+# 'collect' behaves like 'return' or 'leave' (depending on whether there is an 
+# assignment), but also adds all values in the current scope to the parent scope, 
+# This is useful for aggregations as well as fallthrough for switch statements. 
+
+# Each file gets an implicit scope that can be accessed with __file__, which is
+# just a runtime variable automatically made available.
+
+# Each scope can access it's parent via __scope__.__parent__. 
+# If a scope has been assigned to a identifier, the identifier's name can be resolved
+# to a string with __scope__.__name__
+
+# list and scope addition are possible. 
+
+a: [65]
+b: [2, 4, 5]
+
+result: a + ..b # result becomes [65, 2, 4, 5]
+result: a + b   # result becomes [65, [2, 4, 5]]
+
+# similar behavior with scope addition
+# note that 
+
+d: 5
+e: 6
+
+result: d + ..e # this results in a runtime type exception
+
+# prototype objects are useful when you want a robust way to refer to a particular
+# scope. Since all identifiers resolve by climbing from children to parent scopes
+# recursively, simple using a regular scope instance without 'root' is limiting:
+
+my_scope: (){
+	some_val: 68
+
+	print: () {
+		some_val: 5
+		print(some_val) # prints 5
+	}
+}
+
+# as opposed to
+
+my_proto: (root) {
+	root.some_val: 68
+
+	print: () {
+		some_val: 5
+		print(root.some_val) # print 68
+	}
+}
+
+# root simply refers to the scope of the function:
+
+my_proto: (root) {
+	root == __scope__ # resolves to true
+}

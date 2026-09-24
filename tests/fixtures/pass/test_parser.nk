@@ -1,0 +1,7 @@
+
+# test comment
+
+print: (message) {
+	stdio(message)
+}
+

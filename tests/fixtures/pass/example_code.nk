@@ -1,0 +1,233 @@
+# destructuring a scope:
+{ args }: import('sys')
+
+# the import function can be called on 
+# particular scope, this is useful for
+# importing all functions from a module.
+# beware that doing so will overwrite
+# same named identifiers silently. 
+import('sys', __file__)
+
+# implicitly, every file scope runs the following:
+import('core', __file__)
+
+# in general, this kind of import should be avoided. 
+
+# the former can be rewritten with a spread operator:
+..import('core')
+
+
+dispatch: (args) {
+	# dispatch to the method based on args:
+
+	# destructuring a list
+	[ _, function, ..rest ]: args
+
+	__file__[function](..rest)
+}
+
+
+greet: (name) {
+	stdio("hello!" + name)
+}
+
+count: (prev) {
+	stdio(prev + " + 1 is " + (prev + 1))
+}
+
+# identifiers resolve to the current scope, and then
+# walk up parents if resolution is unsucessful.
+# so __file__.__name__ == __name__ right here
+if __name__ == 'main' {
+	dispatch(args)
+}
+
+# __scope__ always refers to the current scope. It happens
+# to equal __file__ at this point
+stdio("loaded scope ", __name__)
+
+# the core module provides built in functions
+# for interacting with stdout, stderr, and stdin
+stderr("oh no! something happened!")
+
+# exampe usage
+# nook example_code.nk greet "ike"
+# nook example_code.nk count 5
+
+# we can use the collect keyword to fallthrough switch case scopes:
+switch var {
+	case "hello" {
+		a: "hello"
+		collect
+	}
+	case "goodbye" {
+		print(a) # prints "hello"
+	}
+	default {
+		print("no match found")
+	}
+
+	# also prints "hello", since a now lives in the main switch scope:
+	print(a) 
+}
+
+# you can use collect to mass overwrite values in a parent scope:
+
+AbstractAnimal: () {
+
+	Duck: () {
+		animal: 'duck'
+		color: 'yellow'
+		phrase: 'quack'
+		collect
+	}
+
+	Cat: () {
+		animal: "feline"
+		color: "orange tabi"
+		phrase: "meow!"
+		collect
+	}
+
+}
+
+AbstractAnimal.Duck()
+AbstractAnimal.animal == 'duck'
+AbstractAnimal.Cat()
+AbstractAnimal.animal == 'cat'
+
+# collect automatically creates any fields that are missing
+
+
+# identifiers for scope function definitions are assigned
+# their own scope automatically:
+
+Person: () {
+	Person.message: "goodbye"
+
+	greet: () {
+		message: "hello"		
+		collect
+	}
+}
+
+p: Person().greet()
+p.message # hello
+Person.message # goodbye
+
+# when you collect a scope function definition,
+# it is added just like anything else to the parent scope:
+
+C: {
+	A: {
+		B: {
+			B.message: "hiiii"
+			fruit: 'apple'
+		}
+		collect
+	}
+}
+
+c: C()
+c.B.message # "hiiii"
+c.B.fruit # none
+c.B().fruit # 'apple'
+
+# Sometimes it is convenient to be able to easily 
+# reference a particular "root" scope of a scope tree,
+# in particular when shadowing is happening alot. 
+
+# the root parameter is reserved for this. 
+# root, if declared, is set to the current scope
+
+Car: (root) {
+	# root == __scope__	
+	rev: () {
+		# root == __scope__.__parent__
+		make_noise: () { print('vrrrrrrr') }
+		root.make_noise()
+	}
+
+	make_noise: () { print('brrrrvrrrrrbrrrrr') }
+}
+
+c: Car()
+c.rev() # prints brrrrvrrrrrbrrrrr instead of vrrrrrr
+
+
+# you can flatten a json object easily if you know its depth,
+# the iterable function is a helper that filters by iterables:
+
+data: {
+	nested: {
+		a: "hello",
+		b: "goodbye"
+	},
+	hi: "hi!"
+}
+
+data_flat: {
+	for entry in iterable(data) {
+		for item in iterable(entry) {
+			collect item
+		}
+	}
+
+	for entry in noniterable(data) {
+		for item in noniterable(entry) {
+			collect item
+		}
+		collect entry
+	}
+}
+
+# now data_flat contains:
+data_flat == {
+	a: "hello",
+	b: "goodbye",
+	hi: "hi!"
+}
+
+
+# a flattening function:
+flatten: (scope) {
+	flattened: {
+		if iterable(scope) {
+			for item in scope {
+				collect ..flatten(item)
+			}
+		}
+		else {
+			collect scope
+		}
+	}
+
+	return flattened
+}
+
+
+# destructing scope arguments:
+# for a function foo
+
+foo: (a, b, c) {
+	print(a, b, c)
+}
+
+bar: { hello: "hello", goodbye: "goodbye" }
+
+foo(1, 2, ..bar)
+
+# this will attempt to find parameters matching each parameter in foo. 
+# In the case above, it fails, because only c exists. 
+
+# the following statements will succeed:
+
+foo: (a, b, hello, goodbye) {
+	print(a, b, hello, goodbye)
+}
+
+foo(1, 2, ..bar)
+
+##############
+
+

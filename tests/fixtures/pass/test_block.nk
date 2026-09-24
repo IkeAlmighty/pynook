@@ -1,0 +1,4 @@
+a: b(),
+hello: print("hello");
+d: 45645
+b: "c";

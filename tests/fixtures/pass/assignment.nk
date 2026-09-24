@@ -1,0 +1,25 @@
+
+b: {
+	c: set[3, 5, 7]
+
+	collect
+}
+
+
+b()
+
+# now this is true:
+__file__['c'] == set[3, 5, 7]
+
+foo: {
+
+	ignore { c }: b()
+	
+	bar: "hello"
+	ignore bar
+
+}
+
+# all expressions in foo are ignored, so the following does nothing:
+
+collect foo()

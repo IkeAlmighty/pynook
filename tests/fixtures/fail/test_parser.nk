@@ -1,0 +1,7 @@
+a: "hello"
+b: a + " goodbye"
+
+# a block that contains the wrong line ending character:
+c: a - b~
+
+
