@@ -1,21 +1,21 @@
+import os
 import io
 import unittest
 from contextlib import redirect_stdout
 
 from tokenizer import Tokenizer
 from parser import Parser
-from ast_executor import Executor
+from nast.evaluator import Evaluator
 from runtime import Runtime
-from runtime_objects import RtFunction, RtScope
-from runtime_exceptions import VariableUnresolvable
+from runtime.objects import RtFunction, RtScope
+from runtime.exceptions import VariableUnresolvable
 
-import os
 
 class TestIntegration(unittest.TestCase):
 
     def setUp(self):
         self.runtime = Runtime()
-        self.executor = Executor(self.runtime)
+        self.evaluator = Evaluator(self.runtime)
 
     def load_fixture(self, fixture_path):
         with open(fixture_path) as f:
@@ -32,7 +32,7 @@ class TestIntegration(unittest.TestCase):
     def test_print(self):
         self.load_source("print('testing the print function')")
         with io.StringIO() as buf, redirect_stdout(buf):
-            self.executor.dispatch(self.parser.file())
+            self.evaluator.dispatch(self.parser.file())
 
             result = buf.getvalue()
             self.assertEqual(result, 'testing the print function\n')
@@ -41,21 +41,21 @@ class TestIntegration(unittest.TestCase):
         filepath="tests/fixtures/pass/test_import.nk"
         self.load_fixture(filepath)
 
-        self.executor.name_hints.append(os.path.basename(filepath))
+        self.evaluator.name_hints.append(os.path.basename(filepath))
         try:
             with io.StringIO() as buf, redirect_stdout(buf):
-                self.executor.dispatch(self.parser.file())
+                self.evaluator.dispatch(self.parser.file())
                 result = buf.getvalue()
 
             self.assertEqual(result, "goodbye!\nhello from import_a.nk!!\n4564\n")
 
         finally:
-            self.executor.name_hints.pop()
+            self.evaluator.name_hints.pop()
 
     def test_scope(self): 
         self.load_source("a: { b: { c: 'hello!' } }, d: a.b.c")
         #self.load_fixture("tests/fixtures/pass/test_scope.nk")
-        scope = self.executor.dispatch(self.parser.file())
+        scope = self.evaluator.dispatch(self.parser.file())
 
         self.assertEqual(scope.resolve("d"), 'hello!')
 
@@ -72,7 +72,7 @@ class TestIntegration(unittest.TestCase):
         )
 
         with io.StringIO() as buf, redirect_stdout(buf):
-            scope = self.executor.dispatch(self.parser.file())
+            scope = self.evaluator.dispatch(self.parser.file())
             result = buf.getvalue()
             self.assertTrue(isinstance(scope.resolve("func"), RtFunction))
             self.assertEqual(result, 'hello\nworld\n')
@@ -93,20 +93,20 @@ class TestIntegration(unittest.TestCase):
             """
         )
 
-        scope = self.executor.dispatch(self.parser.file())
+        scope = self.evaluator.dispatch(self.parser.file())
         self.assertEqual(scope.resolve("a_test"), "567")
 
     def test_list(self):
         self.load_source("a: [1, 2, 'hello']")
 
-        scope = self.executor.dispatch(self.parser.file())
+        scope = self.evaluator.dispatch(self.parser.file())
 
         self.assertEqual(scope.resolve("a"), [1, 2, 'hello'])
 
     def test_set(self):
         self.load_source("a_set: set[1, 2, 2, 2]")
 
-        scope = self.executor.dispatch(self.parser.file())
+        scope = self.evaluator.dispatch(self.parser.file())
 
         self.assertTrue(len(scope.resolve("a_set")) == 2)
     
@@ -118,7 +118,7 @@ class TestIntegration(unittest.TestCase):
             """
         )
 
-        scope = self.executor.dispatch(self.parser.file())
+        scope = self.evaluator.dispatch(self.parser.file())
 
         self.assertEqual(scope.resolve("c"), 65)
         self.assertEqual(scope.resolve("d"), 55)
@@ -142,7 +142,7 @@ class TestIntegration(unittest.TestCase):
             """
         )
 
-        scope = self.executor.dispatch(self.parser.file())
+        scope = self.evaluator.dispatch(self.parser.file())
         self.assertEqual(scope.resolve("c"), 6)
 
     def test_forin(self):
@@ -155,7 +155,7 @@ class TestIntegration(unittest.TestCase):
             """
         )
 
-        scope = self.executor.dispatch(self.parser.file())
+        scope = self.evaluator.dispatch(self.parser.file())
         self.assertEqual(scope.resolve("acc"), 10)
 
     def test_for(self):
@@ -170,7 +170,7 @@ class TestIntegration(unittest.TestCase):
             """
         )
         
-        scope = self.executor.dispatch(self.parser.file())
+        scope = self.evaluator.dispatch(self.parser.file())
         self.assertEqual(scope.resolve("acc"), 15)
 
     def test_switch(self):
@@ -196,7 +196,7 @@ class TestIntegration(unittest.TestCase):
             """
         )
 
-        scope = self.executor.dispatch(self.parser.file())
+        scope = self.evaluator.dispatch(self.parser.file())
 
         self.assertEqual(scope.resolve("b"), 55)
         self.assertEqual(scope.resolve("c"), True)

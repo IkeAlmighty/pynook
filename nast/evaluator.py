@@ -1,8 +1,8 @@
-from runtime_exceptions import *
-from runtime_objects import RtScope, RtConstants, RtCoreFunction, RtFunction 
-import ast_nodes as Nodes
+from runtime.exceptions import *
+from runtime.objects import RtScope, RtConstants, RtCoreFunction, RtFunction 
+import nast.nodes as Node
 
-class Executor:
+class Evaluator:
 
     def __init__(self, runtime):
         self.runtime = runtime
@@ -55,7 +55,7 @@ class Executor:
         an identifier node, instead of the value 
         it points to
         """
-        if isinstance(node, Nodes.Identifier):
+        if isinstance(node, Node.Identifier):
             # do a walk up the scope tree to make
             # sure this identifier has not been declared
             # somewhere:
@@ -70,7 +70,7 @@ class Executor:
             # and return the current scope:
             return self.curr_scope, node.value
 
-        if isinstance(node, Nodes.Member):
+        if isinstance(node, Node.Member):
             owner = self.dispatch(node.target)
 
             if not isinstance(owner, RtScope):
@@ -143,7 +143,7 @@ class Executor:
     def visit_List(self, node):
         rt_list = []
         for expr in node.items:
-            if isinstance(expr, Nodes.SpreadTerm):
+            if isinstance(expr, Node.SpreadTerm):
                 items = self.dispatch(expr.expr)
                 rt_list.extend(items)
             else:
@@ -155,7 +155,7 @@ class Executor:
         #FIXME: badly optimized! (build set conditionally, instead or flattening at end)
         rt_set = []
         for expr in node.items:
-            if isinstance(expr, Nodes.SpreadTerm):
+            if isinstance(expr, Node.SpreadTerm):
                 items = self.dispatch(expr.expr)
                 rt_set.extend(items)
             else:
@@ -252,7 +252,7 @@ class Executor:
         # return dictionary of name, default for parameters
         params = {}
         for param in node.params:
-            if isinstance(param, Nodes.RestParameter):
+            if isinstance(param, Node.RestParameter):
                 return self.dispatch(node.parameter)
 
             else:
@@ -290,7 +290,7 @@ class Executor:
         return func
 
     def visit_Assignment(self, node):
-        if isinstance(node, Nodes.SpreadTerm):
+        if isinstance(node, Node.SpreadTerm):
             raise RuntimeException("spread operator cannot be used in an assignment")
 
         owner, name = self.resolve_assignment_target(node.target)
@@ -517,7 +517,7 @@ class Executor:
         names = self.curr_scope.get_unbound_vars()
 
         for name, expr in zip(names, node.arguments):
-            if isinstance(expr, Nodes.SpreadArgs):
+            if isinstance(expr, Node.SpreadArgs):
                 self.dispatch(expr)
             else:
                 value = self.dispatch(expr)

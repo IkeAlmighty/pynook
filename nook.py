@@ -2,7 +2,7 @@ import sys
 import os
 
 from runtime import Runtime
-from ast_executor import Executor
+from nast.evaluator import Evaluator
 from tokenizer import Tokenizer
 from parser import Parser
 
@@ -22,10 +22,11 @@ if __name__ == "__main__":
 
 
         runtime = Runtime()
-        executor = Executor(runtime)
-        executor.name_hints.append(os.path.basename(args[1]))
+        evaluator = Evaluator(runtime)
 
-        executor.dispatch(parser.file())
+        filepath = os.path.basename(args[1])
 
-        executor.name_hints.pop()
+        evaluator.name_hints.append(filepath)
+        evaluator.dispatch(parser.file())
+        evaluator.name_hints.pop()
 

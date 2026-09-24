@@ -1,8 +1,8 @@
-from runtime_exceptions import *
+from runtime.exceptions import *
 from tokenizer import Tokenizer
 from parser import Parser
-from ast_executor import Executor
-from runtime_objects import *
+from nast.evaluator import Evaluator
+from runtime.objects import *
 import os
 import inspect
 
@@ -60,17 +60,17 @@ class Runtime:
 
         module_name = os.path.basename(fullpath)
 
-        executor = Executor(self)
+        evaluator = Evaluator(self)
 
-        executor.name_hints.append("module." + module_name)
+        evaluator.name_hints.append("module." + module_name)
 
         try:
-            scope = executor.dispatch(ast)
+            scope = evaluator.dispatch(ast)
             return scope
         
         finally:
-            executor.name_hints.pop()
-            executor.scope_stack.pop()
+            evaluator.name_hints.pop()
+            evaluator.scope_stack.pop()
 
 
     ##########################################################

@@ -1,4 +1,4 @@
-from ast_nodes import *
+from nast.nodes import *
 from parser import Parser
 from tokenizer import Tokenizer
 

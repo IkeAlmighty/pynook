@@ -1,15 +1,15 @@
 import unittest
 from unittest.mock import patch
-from ast_nodes import *
-from ast_executor import Executor
+from nast.nodes import *
+from nast.evaluator import Evaluator
 from runtime import Runtime, RtScope
-from runtime_exceptions import *
+from runtime.exceptions import *
 
-class TestAstExecutor(unittest.TestCase):
+class TestAstEvaluator(unittest.TestCase):
 
     def setUp(self):
         runtime = Runtime()
-        self.exec = Executor(runtime)
+        self.exec = Evaluator(runtime)
         self.main_scope = self.exec.runtime.main_scope
 
     def test_resolve_assignment_target(self):
@@ -53,7 +53,7 @@ class TestAstExecutor(unittest.TestCase):
         self.assertEqual(name, "c")
         self.assertEqual(owner, b_scope)
 
-    @patch('ast_nodes.Block')
+    @patch('nast.nodes.Block')
     def test_visit_Scope(self, mock_block):
         fixture = Scope(
             Block([]), 0, 0

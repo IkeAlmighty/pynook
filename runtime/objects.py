@@ -1,4 +1,4 @@
-from runtime_exceptions import *
+from runtime.exceptions import *
 from enum import Enum, auto
 
 class RtConstants(Enum):
