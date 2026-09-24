@@ -191,13 +191,13 @@ class SpreadArgs(Expr):
 
 @dataclass
 class Integer(Literal):
-    value: int 
+    value: str 
     row: int
     col: int
 
 @dataclass
 class Float(Literal):
-    value: float
+    value: str
     row: int
     col: int
 
@@ -209,31 +209,29 @@ class String(Literal):
 
 @dataclass
 class Boolean(Literal):
-    value: bool
+    value: str
     row: int
     col: int
 
 @dataclass
 class Hexadecimal(Literal):
-    value: int
+    value: str
     row: int
     col: int
 
 @dataclass
 class BinaryNumber(Literal):
-    value: int
+    value: str
     row: int
     col: int
 
 @dataclass
 class NullValue(Literal):
-    value: None
     row: int
     col: int
 
 @dataclass
 class NoneValue(Literal):
-    value: None
     row: int
     col: int
 

@@ -60,7 +60,19 @@ class Evaluator:
             # sure this identifier has not been declared
             # somewhere:
             scope = self.curr_scope
-            while scope:
+            while scope:class Instruction: pass
+
+@dataclass
+class Load(Instruction):
+    value: str
+
+@dataclass
+class Store(Instruction):
+    value: str
+
+@dataclass
+class PushConst(Instruction):
+    value: NkValue
                 if node.value in scope.variables:
                     return scope, node.value
                 
