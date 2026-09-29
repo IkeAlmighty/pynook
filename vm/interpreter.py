@@ -1,66 +1,91 @@
 from ir.instructions import *
 from runtime.values import NkScope
 
-class VM:
+class Frame:
+
+    def __init__(self, scope, definition):
+        self.scope = scope
+        self.definition = definition
+        self.ip = 0
+
+class vm:
 
     def __init__(self):
         self.stack = []
-        self.scope = NkScope()
+
+        self.frames = []
+
         self.ins_lookup = {
             Load: self.Load,
             Store: self.Store,
-            PushConst: self.PushConst
-            CreateScope: self.CreateScope
+            PushConst: self.PushConst,
+            CreateScope: self.CreateScope,
             CreateFunction: self.CreateFunction
         }
 
-    def execute(self, definition):
-        for instruction in definition.instructions:
-            self.ins_lookup[type(instruction)](instruction)
+    @property
+    def frame(self):
+        return self.frames[-1]
+
+    def execute(self, scope, definition):
+        try:
+            frame = Frame(scope, definition)
+            self.frames.append(frame)
+
+            instructions = definition.instructions
+
+            while frame.ip < len(instructions):
+                instruction = instructions[frame.ip]
+                self.ins_lookup[type(instruction)](instruction)
+                frame.ip += 1
+
+        finally:
+            self.frames.pop() 
 
     def PushConst(self, inst):
         self.stack.append(inst.value)
 
     def Store(self, inst):
         value = self.stack.pop()
-        self.scope.assign(inst.value, value)
+
+        if isinstance(value, NkScope):
+            # assign name if the scope doesn't have one
+            if value.name is None:
+                value.name = inst.name
+
+            value.aliases.add(inst.name)
+
+        self.frame.scope.assign(inst.name, value)
 
     def Load(self, inst):
         """
-        Loads the instruction's value onto the stack. 
+        loads the instruction's value onto the stack. 
         """
-        value = self.scope.resolve(inst.value)
+        value = self.frame.scope.resolve(inst.name)
         self.stack.append(value)
 
     def CreateScope(self, inst):
         """
-        Creates a NkScope, immediately executes it, and pushes the 
-        NkScope to the stack.
+        creates a nkscope, immediately executes it, and pushes the 
+        nkscope to the stack.
         """
-        new_scope = NkScope(
-            parent=self.scope
-            definition=inst.definition
+        scope = NkScope(
+            parent=self.frame.scope, 
+            body_definition=inst.definition
         )
+        
+        self.execute(scope, inst.definition)
 
-        previous_scope = self.scope
-
-        self.scope = new_scope
-
-        try:
-            self.execute(inst.definition)
-        finally:
-            self.scope = previous_scope
-
-        self.stack.append(new_scope)
+        self.stack.append(scope)
     
     def CreateFunction(self, inst):
         """
-        Creates a NkScope, pushes it to the stack.
+        creates a NkScope, pushes it to the stack.
         """
         function = NkScope(
-            parent=self.scope
-            definition=inst.definition,
-            parameters=inst.parameters
+            parent=self.frame.scope,
+            body_definition=inst.body_definition,
+            parameter_definition=inst.parameter_definition
         )
 
         self.stack.append(function)

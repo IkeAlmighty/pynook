@@ -88,7 +88,7 @@ class Parameters(Node):
 @dataclass 
 class Parameter(Node):
     identifier: Identifier
-    default: Expr
+    default: Expr | None
 
 @dataclass
 class RestParameter(Node):

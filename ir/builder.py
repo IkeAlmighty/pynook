@@ -1,27 +1,87 @@
-from ir.definitions import ScopeDefinition
+from ir.definitions import ScopeDefinition, Constant
+from ir.contexts import SwitchContext
 from ir.instructions import *
-from runtime.values import NkInt
+from nast.nodes import *
 
 class IRBuilder:
 
     def __init__(self):
+        # ends build flattened with a length of 1, used 
+        # to simplify instruction length math per scope 
+        # definition:
         self.definition_stack = [ScopeDefinition()]
+
+        # some helpful stacks:
+        self.switch_stack = []
 
     def build(self, ast):
         self.dispatch(ast)
         return self.definition_stack[0]
 
     @property
-    def curr_scope(self):
+    def curr_definition(self):
         return self.definition_stack[-1]
 
+    @property
+    def curr_switch(self):
+        if len(self.switch_stack) == 0:
+            raise Exception("switch context stack is empty")
+
+        return self.switch_stack[-1]
+
+    @property
+    def curr_inst_length(self):
+        return len(self.curr_definition.instructions)
+
     def emit(self, instruction):
-        self.curr_scope.instructions.append(instruction)
+        self.curr_definition.instructions.append(instruction)
 
     def dispatch(self, node):
         method_name = f"visit_{node.__class__.__name__}"
         method = getattr(self, method_name)
         return method(node)
+
+    ######################################################
+    ##                 VISITOR HELPERS                  ##
+    ######################################################
+
+    def __emit_load(self, node): 
+        if isinstance(node, Identifier):
+            self.emit(
+                Load(node.value)
+            )
+
+        elif isinstance(node, Member):
+            self.__emit_load(node.target)
+
+            self.emit(
+                LoadMember(node.name.value)
+            )
+
+        elif isinstance(node, Subscript):
+            raise NotImplementedError()
+
+        else:
+            raise Exception(f"Invalid Load target {node}")
+
+    def __emit_store(self, node):
+        if isinstance(node, Identifier):
+            self.emit(
+                Store(node.value)
+            )
+
+        elif isinstance(node, Member):
+            self.__emit_load(node.target)
+
+            self.emit(
+                StoreMember(node.name.value)
+            )
+
+        elif isinstance(node, Subscript):
+            raise NotImplementedError()
+
+        else: 
+            raise Exception(f"Invalid Store target {node}")
 
     #####################################################
     ##                 VISITOR METHODS                 ##
@@ -31,11 +91,8 @@ class IRBuilder:
         definition = ScopeDefinition()
 
         self.definition_stack.append(definition)
-
-        try:
-            self.dispatch(node.block)
-        finally:
-            self.definition_stack.pop()
+        self.dispatch(node.block)
+        self.definition_stack.pop()
 
         self.emit(CreateScope(definition))
 
@@ -44,10 +101,16 @@ class IRBuilder:
             self.dispatch(statement)
     
     def visit_List(self, node):
-        raise NotImplementedError()
+        for item in node.items:
+            self.dispatch(item)
+
+        self.emit(CreateList(len(node.items)))
 
     def visit_Set(self, node):
-        raise NotImplementedError()
+        for item in node.items:
+            self.dispatch(item)
+
+        self.emit(CreateSet(len(node.items)))
 
     def visit_Leave(self, node):
         raise NotImplementedError()
@@ -56,16 +119,22 @@ class IRBuilder:
         raise NotImplementedError()
 
     def visit_Collect(self, node):
-        raise NotImplementedError()
+        if node.child:
+            self.dispatch(node.child)
+
+        self.emit(Collect())
 
     def visit_Return(self, node):
-        raise NotImplementedError()
+        if node.child:
+            self.dispatch(node.child)
+
+        self.emit(Return())
 
     def visit_Ignore(self, node):
         raise NotImplementedError()
 
     def visit_Identifier(self, node):
-        self.emit(Load(node.value))
+        self.__emit_load(node)
 
     def visit_Catch(self, node):
         raise NotImplementedError()
@@ -77,49 +146,173 @@ class IRBuilder:
         raise NotImplementedError()
 
     def visit_Parameters(self, node):
-        raise NotImplementedError()
+        parameter_definition = ScopeDefinition()
+        
+        self.definition_stack.append(parameter_definition)
+
+        try: 
+            for parameter in node.parameters:
+                self.dispatch(parameter)
+        finally:
+            self.definition_stack.pop()
+
+        return parameter_definition
 
     def visit_Parameter(self, node):
-        raise NotImplementedError()
+        if node.default:
+            self.dispatch(node.default)
+        else:
+            self.emit(
+                PushConst(
+                    Constant(
+                        type_name="unbound"
+                        value=None
+                    )
+                )
+            )
+
+        self.emit(Store(node.identifier.value))
 
     def visit_RestParameter(self, node):
         raise NotImplementedError()
 
     def visit_DefineFunction(self, node):
-        raise NotImplementedError()
+        body_definition = ScopeDefinition()
 
+        self.definition_stack.append(body_definition)
+
+        try: 
+            self.dispatch(node.scope.block)
+        finally:
+            self.definition_stack.pop()
+
+        parameter_definition = self.dispatch(node.parameters)
+
+        self.emit(
+            CreateFunction(
+                body_definition,
+                parameter_definition
+            ),
+        )
+        
     def visit_Assignment(self, node):
         self.dispatch(node.value)
-        self.emit(
-            Store(node.target.value)
-        )
-
+        self.__emit_store(node.target)
+        
     def visit_Member(self, node):
-        raise NotImplementedError()
+        self.__emit_load(node)
 
     def visit_AssignmentBatch(self, node):
-        raise NotImplementedError()
+        for assignment in node.assignments:
+            self.dispatch(assignment)
 
     def visit_While(self, node):
-        raise NotImplementedError()
+
+        start_jump = Jump(
+            target = self.curr_inst_length
+        )
+
+        end_jump = JumpIfFalse(target=None)
+
+        self.dispatch(node.expr)
+        self.emit(end_jump)
+
+        self.dispatch(node.scope)
+
+        self.emit(start_jump)
+        
+        end_jump.target = self.curr_inst_length
 
     def visit_For(self, node):
-        raise NotImplementedError()
+
+        # TODO should probably enclose init statement in its
+        # own special scope to avoid inadvertant collecting to
+        # other scopes
+
+        self.dispatch(node.init)
+
+        loop_start = self.curr_inst_length
+
+        self.dispatch(node.condition)
+
+        end_jump = JumpIfFalse(target=None)
+        self.emit(end_jump)
+
+        self.dispatch(node.scope)
+        self.dispatch(node.update)
+
+        self.emit(Jump(target=loop_start))
+
+        end_jump.target = self.curr_inst_length
 
     def visit_ForIn(self, node):
         raise NotImplementedError()
-
+        
     def visit_If(self, node):
-        raise NotImplementedError()
+        branches = [(node.condition, node.then_scope)]
+
+        for elif_node in node.elifs:
+            branches.append((elif_node.condition, elif_node.then_scope))
+
+        end_jumps = []
+        for condition, scope in branches:
+            self.dispatch(condition)
+
+            skip_branch = JumpIfFalse(target=None)
+            self.emit(skip_branch)
+
+            self.dispatch(scope)
+
+            end_jump = Jump(None)
+            self.emit(end_jump)
+            end_jumps.append(end_jump)
+
+            skip_branch.target = self.curr_inst_length
+
+        if node.else_scope:
+            self.dispatch(node.else_scope)
+
+        for jump in end_jumps:
+            jump.target = self.curr_inst_length
 
     def visit_Switch(self, node):
-        raise NotImplementedError()
 
+        switch_context = SwitchContext()
+        self.switch_stack.append(switch_context)
+
+        self.__emit_load(node.expr)
+        self.emit(Store(switch_context.expr_id))
+        
+        self.dispatch(node.scope)
+
+        self.switch_stack.pop()
+
+        for jump in switch_context.end_jumps:
+            jump.target = self.curr_inst_length
+        
     def visit_Case(self, node):
-        raise NotImplementedError()
+        self.dispatch(node.literal)
+
+        switch_expr_id = self.curr_switch.expr_id
+        self.emit(Load(switch_expr_id))
+
+        self.emit(Equals())
+        
+        jump = JumpIfFalse(target=None)
+        self.emit(jump)
+
+        self.dispatch(node.scope)
+
+        jump.target = self.curr_inst_length
+
+        # skip the rest of the switch (this can be avoided 
+        # with a collect ending the case scope)
+        end_jump = Jump(target=None)
+        self.curr_switch.end_jumps.append(end_jump)
+        self.emit(end_jump)
 
     def visit_Default(self, node):
-        raise NotImplementedError()
+        self.dispatch(node.scope)
 
     def visit_SpreadTerm(self, node):
         raise NotImplementedError()
@@ -134,28 +327,70 @@ class IRBuilder:
         raise NotImplementedError()
 
     def visit_Subscript(self, node):
-        raise NotImplementedError()
+        self.__emit_load(node)
 
     def visit_SpreadArgs(self, node):
         raise NotImplementedError()
 
     def visit_Integer(self, node):
-        self.emit(PushConst(NkInt(node.value)))
+        self.emit(
+            PushConst(
+                Constant(
+                    type_name="int"
+                    value=node.value
+                )
+            )
+        )
 
     def visit_Float(self, node):
-        self.emit(PushConst(NkFloat(node.value)))
+        self.emit(
+            PushConst(
+                Constant(
+                    type_name="float",
+                    value=node.value
+                )
+            )
+        )
 
     def visit_String(self, node):
-        self.emit(PushConst(NkString(node.value)))
+        self.emit(
+            PushConst(
+                Constant(
+                    type_name="string",
+                    value=node.value
+                )
+            )
+        )
 
     def visit_Boolean(self, node):
-        self.emit(PushConst(NkBool(node.value)))
+        self.emit(
+            PushConst(
+                Constant(
+                    type_name="boolean",
+                    value=node.value
+                )
+            )
+        )
 
     def visit_Hexadecimal(self, node):
-        raise NotImplementedError()
+        self.emit(
+            PushConst(
+                Constant(
+                    type_name="hexadecimal",
+                    value=int(node.value, 16)
+                )
+            )
+        )
 
     def visit_BinaryNumber(self, node):
-        raise NotImplementedError()
+        self.emit(
+            PushConst(
+                Constant(
+                    type_name="binary",
+                    value=int(node.value, 2)
+                )
+            )
+        )
 
     def visit_NullValue(self, node):
         raise NotImplementedError()

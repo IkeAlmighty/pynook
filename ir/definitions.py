@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 
 class ScopeDefinition:
 
@@ -11,3 +12,10 @@ class ScopeDefinition:
                 self.instructions
             )
         )
+
+@dataclass
+class Constant:
+    type_name: str
+    value: object
+
+main_definition = ScopeDefinition()

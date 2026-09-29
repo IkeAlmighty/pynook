@@ -1,4 +1,3 @@
-
 import unittest
 from vm.interpreter import VM
 from ir.instructions import *
@@ -17,13 +16,14 @@ class TestVM(unittest.TestCase):
         return scope
 
     def test_assign(self):
-        scope = self.load([
+        scope_def = self.load([
             PushConst(NkInt(5)),
             Store("a"),
             Load("a"),
             Store("b")
         ])
 
-        self.vm.execute(scope)
+        self.vm.execute(scope_def)
+        self.assertEqual(self.vm.scope.members['a'], NkInt(5))
+        self.assertEqual(self.vm.scope.members['b'], NkInt(5))
 
-        print(self.vm.scope.members)
