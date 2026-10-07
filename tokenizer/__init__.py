@@ -64,6 +64,7 @@ class TokenTypes(Enum):
     KW_WHILE = auto()
     KW_DO = auto()
     KW_IF = auto()
+    KW_ELIF = auto()
     KW_ELSE = auto()
     KW_SWITCH = auto()
     KW_CASE = auto()
@@ -107,6 +108,7 @@ class Tokenizer:
         "while",
         "do",
         "if",
+        "elif",
         "else",
         "switch",
         "case",

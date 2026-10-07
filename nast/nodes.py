@@ -168,15 +168,6 @@ class BinaryOperation(Expr):
     right: Expr
 
 @dataclass
-class Arguments(Node):
-    arguments: list[ Expr ]
-
-@dataclass
-class Call(Expr):
-    expr: Expr
-    arguments: Arguments
-
-@dataclass
 class Subscript(Expr):
     expr: Expr
     start: String | Integer | None
@@ -184,10 +175,22 @@ class Subscript(Expr):
     is_slice: bool
 
 @dataclass
-class SpreadArgs(Expr):
+class Call(Expr):
     expr: Expr
-    row: int
-    col: int
+    arguments: Arguments
+
+@dataclass
+class Arguments(Node):
+    arguments: list[ Argument | SpreadArgument ]
+
+@dataclass
+class Argument(Node):
+    expr: Expr
+    bind_to: Identifier | None
+
+@dataclass
+class SpreadArgument(Node):
+    expr: Expr
 
 @dataclass
 class Integer(Literal):

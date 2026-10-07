@@ -3,6 +3,12 @@ from ir.contexts import SwitchContext
 from ir.instructions import *
 from nast.nodes import *
 
+RETURN_DEST = "return_dest"
+LEAVE_DEST = "leave_dest"
+CONTINUE_DEST = "continue_dest"
+COLLECT_DEST = "collect_dest"
+COLLECT_RESOLVABLE_MEMBERS = "collect_resolvable_members"
+
 class IRBuilder:
 
     def __init__(self):
@@ -13,6 +19,9 @@ class IRBuilder:
 
         # some helpful stacks:
         self.switch_stack = []
+
+        # scope types annotations:
+        self.control_types_stack = [[]]
 
     def build(self, ast):
         self.dispatch(ast)
@@ -32,6 +41,13 @@ class IRBuilder:
     @property
     def curr_inst_length(self):
         return len(self.curr_definition.instructions)
+
+    @property
+    def control_types(self):
+        if len(self.control_types_stack) == 0:
+            raise Exception("scope types stack is empty, cannot access")
+
+        return self.control_types_stack[-1] 
 
     def emit(self, instruction):
         self.curr_definition.instructions.append(instruction)
@@ -88,13 +104,17 @@ class IRBuilder:
     #####################################################
 
     def visit_Scope(self, node):
-        definition = ScopeDefinition()
+        definition = ScopeDefinition(
+            control_types=self.control_types
+        )
 
         self.definition_stack.append(definition)
         self.dispatch(node.block)
         self.definition_stack.pop()
 
-        self.emit(CreateScope(definition))
+        self.emit(
+            CreateScope(definition)
+        )
 
     def visit_Block(self, node):
         for statement in node.statements:
@@ -113,10 +133,10 @@ class IRBuilder:
         self.emit(CreateSet(len(node.items)))
 
     def visit_Leave(self, node):
-        raise NotImplementedError()
+        self.emit(Leave())
 
     def visit_Continue(self, node):
-        raise NotImplementedError()
+        self.emit(Continue())
 
     def visit_Collect(self, node):
         if node.child:
@@ -127,6 +147,12 @@ class IRBuilder:
     def visit_Return(self, node):
         if node.child:
             self.dispatch(node.child)
+        else:
+            self.emit(
+                PushConst(
+                    Constant("none", None)
+                )
+            )
 
         self.emit(Return())
 
@@ -165,7 +191,7 @@ class IRBuilder:
             self.emit(
                 PushConst(
                     Constant(
-                        type_name="unbound"
+                        type_name="unbound",
                         value=None
                     )
                 )
@@ -181,17 +207,16 @@ class IRBuilder:
 
         self.definition_stack.append(body_definition)
 
-        try: 
-            self.dispatch(node.scope.block)
-        finally:
-            self.definition_stack.pop()
+        self.dispatch(node.scope.block)
+        self.definition_stack.pop()
 
         parameter_definition = self.dispatch(node.parameters)
 
         self.emit(
             CreateFunction(
                 body_definition,
-                parameter_definition
+                parameter_definition, 
+                control_types=[RETURN_DEST, LEAVE_DEST, COLLECT_DEST]
             ),
         )
         
@@ -217,17 +242,15 @@ class IRBuilder:
         self.dispatch(node.expr)
         self.emit(end_jump)
 
+        self.control_types_stack.append([CONTINUE_DEST, LEAVE_DEST, COLLECT_RESOLVABLE_MEMBERS])
         self.dispatch(node.scope)
+        self.control_types_stack.pop()
 
         self.emit(start_jump)
         
         end_jump.target = self.curr_inst_length
 
     def visit_For(self, node):
-
-        # TODO should probably enclose init statement in its
-        # own special scope to avoid inadvertant collecting to
-        # other scopes
 
         self.dispatch(node.init)
 
@@ -238,6 +261,8 @@ class IRBuilder:
         end_jump = JumpIfFalse(target=None)
         self.emit(end_jump)
 
+        self.control_types_stack.append([CONTINUE_DEST, LEAVE_DEST])
+
         self.dispatch(node.scope)
         self.dispatch(node.update)
 
@@ -245,11 +270,16 @@ class IRBuilder:
 
         end_jump.target = self.curr_inst_length
 
+        self.control_types_stack.pop()
+
     def visit_ForIn(self, node):
         raise NotImplementedError()
         
     def visit_If(self, node):
         branches = [(node.condition, node.then_scope)]
+
+        # mark control types for all following if, else, and elif scopes: 
+        self.control_types_stack.append([LEAVE_DEST, RETURN_DEST, COLLECT_RESOLVABLE_MEMBERS])
 
         for elif_node in node.elifs:
             branches.append((elif_node.condition, elif_node.then_scope))
@@ -272,6 +302,9 @@ class IRBuilder:
         if node.else_scope:
             self.dispatch(node.else_scope)
 
+        # pop the control types used for previously processed scopes:
+        self.control_types_stack.pop()
+
         for jump in end_jumps:
             jump.target = self.curr_inst_length
 
@@ -283,7 +316,11 @@ class IRBuilder:
         self.__emit_load(node.expr)
         self.emit(Store(switch_context.expr_id))
         
+        self.control_types_stack.append([COLLECT_DEST])
+
         self.dispatch(node.scope)
+
+        self.control_types_stack.pop()
 
         self.switch_stack.pop()
 
@@ -296,12 +333,17 @@ class IRBuilder:
         switch_expr_id = self.curr_switch.expr_id
         self.emit(Load(switch_expr_id))
 
-        self.emit(Equals())
+        self.emit(Equal())
         
         jump = JumpIfFalse(target=None)
         self.emit(jump)
 
+        # all child scopes can return control flow to a case scope:
+        self.control_types_stack.append([LEAVE_DEST, COLLECT_DEST, RETURN_DEST])
+
         self.dispatch(node.scope)
+
+        self.control_types_stack.pop()
 
         jump.target = self.curr_inst_length
 
@@ -312,31 +354,72 @@ class IRBuilder:
         self.emit(end_jump)
 
     def visit_Default(self, node):
+        self.control_types_stack.append([LEAVE_DEST, COLLECT_DEST, RETURN_DEST])
         self.dispatch(node.scope)
+        self.control_types_stack.pop()
 
     def visit_SpreadTerm(self, node):
-        raise NotImplementedError()
+        self.dispatch(node.expr)
+        self.emit(SpreadTerm())
 
     def visit_BinaryOperation(self, node):
-        raise NotImplementedError()
-
-    def visit_Arguments(self, node):
-        raise NotImplementedError()
+        self.dispatch(node.left)
+        self.dispatch(node.right)
+        token_type_str = node.op_token.type.name
+        op_inst_lookup = {
+            "SUB": Subtract,
+            "ADD": Add,
+            "DIV": Divide,
+            "MULT": Multiply,
+            "EXPONENT": Exponent,
+            "MODULO": Modulo,
+            "XOR": Xor,
+            "BW_AND": BwAnd,
+            "BW_OR": BwOr,
+            "AND": And,
+            "OR": Or,
+            "EQ": Equal,
+            "NOT_EQ": NotEqual,
+            "GREATER_EQ": GreaterThanOrEqual,
+            "LESS_EQ": LessThanOrEqual,
+            "LESS": LessThan,
+            "GREATER": GreaterThan,
+        }
+        self.emit(op_inst_lookup[token_type_str]())
 
     def visit_Call(self, node):
-        raise NotImplementedError()
+        self.dispatch(node.arguments)
+        self.__emit_load(node.expr)
+        self.emit(Call())
+
+    def visit_Arguments(self, node):
+        for argument in node.arguments:
+            self.dispatch(argument)
+
+        self.emit(CreateList(len(node.arguments)))
+
+    def visit_Argument(self, node):
+        self.dispatch(node.expr)
+        self.emit(
+            CreateArgument(
+                node.bind_to.value
+                if node.bind_to
+                else None
+            )
+        )
+
+    def visit_SpreadArgument(self, node):
+        self.dispatch(node.expr)
+        self.emit(CreateSpreadArgument())
 
     def visit_Subscript(self, node):
         self.__emit_load(node)
-
-    def visit_SpreadArgs(self, node):
-        raise NotImplementedError()
 
     def visit_Integer(self, node):
         self.emit(
             PushConst(
                 Constant(
-                    type_name="int"
+                    type_name="int",
                     value=node.value
                 )
             )
@@ -393,7 +476,21 @@ class IRBuilder:
         )
 
     def visit_NullValue(self, node):
-        raise NotImplementedError()
+        self.emit(
+            PushConst(
+                Constant(
+                    type_name="null",
+                    value=None
+                )
+            )
+        )
 
     def visit_NoneValue(self, node):
-        raise NotImplementedError()
+        self.emit(
+            PushConst(
+                Constant(
+                    type_name="none",
+                    value=None
+                )
+            )
+        )

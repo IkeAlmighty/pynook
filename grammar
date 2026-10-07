@@ -47,8 +47,8 @@ default := 'default' scope # same as case
 
 def_func := '(' params? ')' scope
 def_root_func := '(' 'root' (',' params)? ')' scope
-params := param (',' param)*
-param := spread? identifier (':' expr)?
+params := param (',' param)* spread?
+param :=  identifier (':' expr)?
 
 expr := infix
 infix := term (op term)* # precedence-parser
@@ -61,8 +61,8 @@ subscript := '[' expr? (':' expr?)?']'
 
 spread := '..'
 op := r'[/-+%*^><=!#]+'
-args := arg (',' arg)*
-arg := spread? expr
+args := arg (',' arg)* spread?
+arg := (identifier ':')? expr
 
 literal := int | float | string | boolean | binary | hexadecimal | scope | list | set | 'null' | 'none'
 identifier := r'[a-zA-Z_][0-9a-zA-Z_]*'

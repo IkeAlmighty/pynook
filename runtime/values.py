@@ -2,7 +2,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum, auto
 
-class NkValue: pass
+class NkValue: 
+
+    def add(self, rhs):
+        raise Exception(f"{type(self)} does not support add")
+
+    def less_than(self, rhs):
+        raise Exception(f"{type(self)} does not support less than")
 
 class NkScope(NkValue):
 
@@ -10,16 +16,32 @@ class NkScope(NkValue):
         "__name__",
         "__main__",
         "__scope__",
-        "__file__"
+        "__file__", 
+        "__parent__"
     }
 
-    def __init__(self, parent=None, body_definition=None, parameter_definition=None, name=None):
+    def __init__(self, parent=None, body_definition=None, parameter_definition=None, name=None, is_file_scope=False):
         self.parent = parent
         self.members = {}
         self.parameter_definition = parameter_definition
         self.body_definition = body_definition
         self.name = name
         self.aliases = set()
+
+        # initialize reserved members:
+        self.members["__scope__"] = self
+        self.members["__name__"] = self.name
+        self.members["__parent__"] = self.parent
+        
+        # the root filescope is the main scope (child of the builtins scope)
+        if parent and parent.parent is None:
+            self.members["__main__"] = self
+
+        if is_file_scope: 
+            self.set_as_file_scope()
+
+    def set_as_file_scope(self):
+        self.members["__file__"] = self
 
     @property
     def unreserved_members(self):
@@ -42,18 +64,29 @@ class NkScope(NkValue):
 
         raise Exception(f"{name} cannot be resolved")
 
+    def resolve_owner(self, name):
+        curr = self
+        
+        while curr:
+            if name in curr.members:
+                return curr
+            
+            curr = curr.parent
+
+        return None
+
     def assign(self, name, value):
         if name in NkScope.reserved_names:
             raise Exception(f"{name} is a reserved name, cannot assign {value} to it")
 
         self.members[name] = value
 
-    def call(self, vm, arguments: list[NkArgument | NkSpreadArgument]):
+    def call(self, vm, arguments: NkList):
         # create the execution scope, which is a copy of this scope,
         # minus the current member state (the new execution scope
         # can also be thought of as a new instance of the definition)
 
-        execution_scope = NkScope(
+        new_scope = NkScope(
             parent=self.parent, 
             body_definition=self.body_definition,
             parameter_definition=self.parameter_definition,
@@ -62,29 +95,31 @@ class NkScope(NkValue):
     
         # run the parameter definition:
         vm.execute(
-            execution_scope,
+            new_scope,
             self.parameter_definition
         )
 
-        parameters = execution_scope.unreserved_members
+        parameters = new_scope.unreserved_members
         
         # bind the arguments based on this scope's parameters
-        bindings = self.__gather_argument_bindings(arguments, parameters)
+        bindings = self.__gather_argument_bindings(arguments.items, parameters)
 
         # overwrite all parameters with arguments:
         for name, value in bindings.items():
-            execution_scope.assign(name, value)
+            new_scope.assign(name, value)
 
         # validate that all parameters have been assigned:
-        for name, value in execution_scope.unreserved_members.items():
+        for name, value in new_scope.unreserved_members.items():
             if value is NK_UNBOUND:
-                raise Exception(f"name {name} is unbound for scope call {execution_scope.name}")
+                raise Exception(f"name {name} is unbound for scope call {new_scope.name}")
 
         # execute on the vm:
         vm.execute(
-            execution_scope,
+            new_scope,
             self.body_definition
         )
+
+        return new_scope.return_value
 
     def __gather_argument_bindings(self, arguments, parameters):
         bindings = {}
@@ -157,7 +192,7 @@ class NkScope(NkValue):
         if isinstance(spread_candidate, NkSpreadArgument):
             new_boundary = len(expanded_arguments)
 
-            for value in spread_candidate.values:
+            for value in spread_candidate.items:
                 expanded_arguments.append(
                     NkArgument(value, NK_UNBOUND)
                 )
@@ -167,28 +202,80 @@ class NkScope(NkValue):
             return expanded_arguments, new_boundary
 
         return arguments, boundary
+
+    def collect_to(self, obj):
+        for name, value in self.unreserved_members.items():
+            if isinstance(obj, NkList):
+                obj.items.append(value)
+
+            elif isinstance(obj, NkSet):
+                obj.items.add(value)
+
+            else: #NkScope:
+                obj.assign(name, value)
+
+            
         
 class NkSet(NkValue):
 
-    def __init__(self, value):
-        self.value = set(value)
-    
+    def __init__(self, items):
+        self.items = []
+        for item in items:
+            self.add(item)
+
+    def add(self, item):
+        for existing_item in self.items:
+            if existing_item == item:
+                return
+
+        self.items.append(item)
+
     def __repr__(self):
-        return f"NkSet{self.value}"
+        return f"NkSet{self.items}"
 
     def __eq__(self, rhs):
-        return self.value == rhs.value
+        return (
+            isinstance(rhs, (NkList, NkSet))
+            and self.items == rhs.items
+        )
+        
+    def collect_to(self, obj):
+        for item in self.items:
+            if isinstance(obj, NkList):
+                obj.items.append(item)
+
+            elif isinstance(obj, NkSet):
+                obj.items.add(item)
+
+            else: #NkScope:
+                if isinstance(item, NkScope):
+                    obj.assign(item.name, item)
 
 class NkList(NkValue):
 
-    def __init__(self, value):
-        self.value = list(value)
+    def __init__(self, items):
+        self.items = list(items)
     
     def __repr__(self):
-        return f"NkList{self.value}"
+        return f"NkList{self.items}"
 
     def __eq__(self, rhs):
-        return self.value == rhs.value
+        return (
+            isinstance(rhs, (NkSet, NkList))
+            and self.items == rhs.items
+        )
+
+    def collect_to(self, obj):
+        for item in self.items:
+            if isinstance(obj, NkList):
+                obj.items.append(item)
+
+            elif isinstance(obj, NkSet):
+                obj.items.add(item)
+
+            else: #NkScope:
+                if isinstance(item, NkScope):
+                    obj.assign(item.name, item)
 
 class NkBool(NkValue):
 
@@ -210,24 +297,39 @@ class NkArgument:
 
 @dataclass
 class NkSpreadArgument:
-    values: list[NkValue]
+    values: NkList
 
-@dataclass
+@dataclass(frozen=True)
 class NkInt(NkValue): 
     value: int
 
-@dataclass
+    def add(self, rhs):
+        if isinstance(rhs, NkInt):
+            return NkInt(
+                self.value + rhs.value
+            )
+        if isinstance(rhs, NkFloat):
+            return NkFloat(
+                self.value + rhs.value
+            )
+
+    def less_than(self, rhs):
+        if isinstance(rhs, NkInt):
+            if self.value < rhs.value: return NK_TRUE
+            else: return NK_FALSE
+
+@dataclass(frozen=True)
 class NkFloat(NkValue):
     value: float
 
-@dataclass
+@dataclass(frozen=True)
 class NkString(NkValue):
     value: str
 
 @dataclass
 class NkNone(NkValue): pass
     
-@dataclass
+@dataclass(frozen=True)
 class NkNull(NkValue): pass
 
 @dataclass
@@ -236,3 +338,5 @@ class NkUnbound(NkValue): pass
 NK_NONE = NkNone()
 NK_NULL = NkNull()
 NK_UNBOUND = NkUnbound()
+NK_FALSE = NkBool('false')
+NK_TRUE = NkBool('true')

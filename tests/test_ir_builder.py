@@ -1,7 +1,9 @@
 
 import unittest
+from pprint import pprint
 from ir.builder import IRBuilder
 from ir.instructions import *
+from ir.serializer import IRSerializer
 from nast.nodes import *
 
 class TestIRBuilder(unittest.TestCase):
@@ -59,7 +61,8 @@ class TestIRBuilder(unittest.TestCase):
         #TODO
 
     def test_visit_Block(self):
-        pass
+        block = Block([
+            Assignment(
 
     def test_visit_Set(self):
         pass
@@ -124,11 +127,11 @@ class TestIRBuilder(unittest.TestCase):
     def test_visit_If(self):
         node = If(
             condition=Boolean(False, 0, 0),
-            then_scope=Scope(Block(Statement()), 0, 0),
+            then_scope=Scope(Block([String("hello", 0, 0)]), 0, 0),
             elifs=[
-                If(Boolean(False, 0, 0), Scope(Block([Statement()]), 0, 0), [], None), 
-                If(Boolean(False, 0, 0), Scope(Block([Statement()]), 0, 0), [], None), 
-                If(Boolean(False, 0, 0), Scope(Block([Statement()]), 0, 0), [], None)
+                If(Boolean(False, 0, 0), Scope(Block([String("a", 0, 0)]), 0, 0), [], None), 
+                If(Boolean(False, 0, 0), Scope(Block([String("b", 0, 0)]), 0, 0), [], None), 
+                If(Boolean(False, 0, 0), Scope(Block([String("c", 0, 0)]), 0, 0), [], None)
             ],
             else_scope=None
         )

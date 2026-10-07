@@ -230,4 +230,48 @@ foo(1, 2, ..bar)
 
 ##############
 
+# expression spread term:
+..a # valid, copies all members of a to current scope
+
+b: ..a # invalid, throws error in semantic analysis
+
+b: [..a] # valid if a is a list or set
+
+b: {..a} # valid if a is a scope
+
+
+f: [4, 5, 6]
+c: (a, b..) {
+	d: [..b]
+	print(d) # prints [4, 5, 6]
+}
+c(1, f..)
+
+## POLYMORPHISM ##
+
+Stream: () {
+	seek() {}
+	open() {}
+	close() {}
+}
+
+File: () {
+	..Stream
+	# perhaps change the base data but use the same methods?
+}
+
+# builtin for all scopes could be:
+supports: (scope, other) {
+	scope_members = {..scope}
+	other_members = {..other}
+	for member in other_members {
+			for scope_member in scope_members {
+				if ast(signature(member)) != ast(signature(scope_member)) {
+					return false
+				}
+			}
+		} 
+	}
+}
+
 

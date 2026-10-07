@@ -100,7 +100,7 @@ class Parser:
         while self.curr_token.type == TokenTypes.NEWLINE:
             self._eat(TokenTypes.NEWLINE)
 
-        if self.curr_token.type == TokenTypes.IDENTIFIER:
+        if self.curr_token.type in (TokenTypes.IDENTIFIER, TokenTypes.STRING):
             return self._assignment_or_expr()
 
         elif self.curr_token.type == TokenTypes.SPREAD:
@@ -240,8 +240,21 @@ class Parser:
     def _assignment(self):
 
         try:
-            target = self._target()
+            target = None
+            # check for string assignments first
+            if self.curr_token.type == TokenTypes.STRING:
+                target = Nodes.Identifier(
+                    value=self.curr_token.value, 
+                    row=self.tokenizer.row, 
+                    col=self.tokenizer.col
+                )
+                self._eat(TokenTypes.STRING)
+            else:
+                # otherwise assume it's a regular target
+                target = self._target()
+
             self._eat(TokenTypes.COLON)
+
         except UnexpectedTokenException as err:
             raise ExpressionNeededException
 
@@ -388,7 +401,7 @@ class Parser:
 
     def _return(self):
         self._eat(TokenTypes.KW_RETURN)
-        child = None # TODO: replace with NoneValue enum
+        child = None 
 
         if self.curr_token.type in (
             TokenTypes.LBRACE,
@@ -413,7 +426,7 @@ class Parser:
 
     def _collect(self):
         self._eat(TokenTypes.KW_COLLECT)
-        child = None # TODO: replace with runtime NoneValue 
+        child = None 
 
         if self.curr_token.type in (TokenTypes.IDENTIFIER, TokenTypes.SPREAD):
             child = self._assignment_or_expr()
@@ -563,28 +576,37 @@ class Parser:
             self._eat(TokenTypes.COMMA)
             params.append(self._param())
 
+        if self.curr_token.type == TokenTypes.SPREAD:
+            if len(params) == 0: 
+                row = self.tokenizer.row
+                col = self.tokenizer.col
+                raise Exception(f"Unexepected spread token '..' {row} {col}")
+            
+            last_param = params.pop()
+
+            if last_param.default:
+                raise Exception(f"rest parameters cannot have default values")
+
+            spread_param = Nodes.RestParameter(last_param)
+            params.append(spread_param)
+            self._eat(TokenTypes.SPREAD)
+
         return Nodes.Parameters(params)
 
-    def _param(self, spread_wrapped=False):
+    def _param(self):
         result = None
         
-        if self.curr_token.type == TokenTypes.SPREAD and not spread_wrapped:
-            # wrap this call in a RestParameter node
-            self._eat(TokenTypes.SPREAD)
-            result = Nodes.RestParameter(self._param(spread_wrapped=True))
+        t = self.curr_token
+        self._eat(TokenTypes.IDENTIFIER)
+        
+        # handle default parameter values:
+        default = None
+        if self.curr_token.type == TokenTypes.COLON:
+            self._eat(TokenTypes.COLON) 
+            default = self._expr()
 
-        else:
-            t = self.curr_token
-            self._eat(TokenTypes.IDENTIFIER)
-            
-            # handle default parameter values:
-            default = None
-            if self.curr_token.type == TokenTypes.COLON:
-                self._eat(TokenTypes.COLON) 
-                default = self._expr()
-
-            identifier = Nodes.Identifier(t.value, t.row, t.col)
-            result = Nodes.Parameter(identifier, default)
+        identifier = Nodes.Identifier(t.value, t.row, t.col)
+        result = Nodes.Parameter(identifier, default)
 
         return result
             
@@ -708,22 +730,35 @@ class Parser:
             self._eat(TokenTypes.COMMA)
             args.append(self._arg()) 
 
+        if self.curr_token.type == TokenTypes.SREAD:
+            if len(args) == 0:
+                raise Exception("no target for spread")
+
+            last_arg = args.pop()
+            if last_arg.default:
+                raise Exception("spread arguments cannot be specifically bound to a parameter")
+
+            spread_arg = Node.SpreadArg(last_arg.expr)
+            args.append(spread_arg)
+
         return Nodes.Arguments(args)
         
     def _arg(self):
-        spread = False
-        
-        if self.curr_token.type == TokenTypes.SPREAD:
-            self._eat(TokenTypes.SPREAD)
-            spread = True
-
         expr = self._expr()
 
-        if spread:
-            return Nodes.SpreadArgs(expr)
+        # named argument logic: 
+        bind_to = None
+        if self.curr_token.type == TokenTypes.COLON:
+            if not isinstance(expr, Identifier):
+                raise Exception(f"expressions cannot be used as argument identifier {self.tokenizer.row} {self.tokenizer.col}")
 
-        return expr
-    
+            self._eat(TokenTypes.COLON)
+
+            bind_to = expr.value
+
+            expr = self._expr()
+
+        return Nodes.Argument(expr, bind_to)
     
     def _literal(self):
         node_lookup = {

@@ -1,14 +1,9 @@
+from __future__ import annotations
 from ir.instructions import *
-from runtime.values import NkScope
+from runtime.values import *
+from ir.builder import RETURN_DEST, LEAVE_DEST, CONTINUE_DEST, COLLECT_DEST, COLLECT_RESOLVABLE_MEMBERS 
 
-class Frame:
-
-    def __init__(self, scope, definition):
-        self.scope = scope
-        self.definition = definition
-        self.ip = 0
-
-class vm:
+class VirtualMachine:
 
     def __init__(self):
         self.stack = []
@@ -20,30 +15,92 @@ class vm:
             Store: self.Store,
             PushConst: self.PushConst,
             CreateScope: self.CreateScope,
-            CreateFunction: self.CreateFunction
+            CreateFunction: self.CreateFunction,
+            CreateList: self.CreateList,
+            CreateSet: self.CreateSet,
+            Equal: self.Equal,
+            JumpIfFalse: self.JumpIfFalse,
+            Jump: self.Jump,
+            Add: self.Add,
+            LessThan: self.LessThan
         }
 
+        
+    def materialize(self, constant):
+        type_name = constant.type_name
+        value = constant.value
+
+        if type_name == "int": 
+            return NkInt(int(value))
+            
+        elif type_name == "string": 
+            return NkString(str(value))
+            
+        elif type_name == "float": 
+            return NkFloat(float(value))
+            
+        elif type_name == "boolean": 
+            return NkBool(value)
+            
+        elif type_name == "hexadecimal": 
+            return NkInt(int(value))
+            
+        elif type_name == "binary": 
+            return NkInt(int(value))
+            
+        elif type_name == "none": 
+            return NK_NONE
+            
+        elif type_name == "null": 
+            return NK_NULL
+            
+        elif type_name == "unbound": 
+            return NK_UNBOUND
+
+        else:
+            raise Exception(f"no materialize branch for {type_name}")
+            
     @property
     def frame(self):
         return self.frames[-1]
 
     def execute(self, scope, definition):
+        frame = Frame(scope, definition)
         try:
-            frame = Frame(scope, definition)
             self.frames.append(frame)
 
             instructions = definition.instructions
 
             while frame.ip < len(instructions):
                 instruction = instructions[frame.ip]
-                self.ins_lookup[type(instruction)](instruction)
                 frame.ip += 1
+                self.ins_lookup[type(instruction)](instruction)
 
         finally:
+            # first, promote any resolvable members in this
+            # frame's scope to their owners:
+
+            if COLLECT_RESOLVABLE_MEMBERS in definition.control_types:
+                for name in frame.scope.unreserved_members:
+                    owner = frame.scope.parent.resolve_owner(name)
+                    if owner:
+                        owner.assign(name, frame.scope.resolve(name))
+
+            # then, apply the completion type and pop the frame:
+            completion = frame.completion 
             self.frames.pop() 
 
+            if self.frames:
+                completion.apply(self)
+
+    ###################################################################################
+    ##########                  Instruction Implementations                 ###########
+    ###################################################################################
+
     def PushConst(self, inst):
-        self.stack.append(inst.value)
+        const = inst.value
+        value = self.materialize(const)
+        self.stack.append(value)
 
     def Store(self, inst):
         value = self.stack.pop()
@@ -64,6 +121,13 @@ class vm:
         value = self.frame.scope.resolve(inst.name)
         self.stack.append(value)
 
+    def JumpIfFalse(self, inst):
+        value = self.stack.pop()
+        if value == NK_FALSE: self.frame.ip = inst.target
+
+    def Jump(self, inst):
+        self.frame.ip = inst.target
+
     def CreateScope(self, inst):
         """
         creates a nkscope, immediately executes it, and pushes the 
@@ -71,9 +135,9 @@ class vm:
         """
         scope = NkScope(
             parent=self.frame.scope, 
-            body_definition=inst.definition
+            body_definition=inst.definition,
         )
-        
+
         self.execute(scope, inst.definition)
 
         self.stack.append(scope)
@@ -85,7 +149,239 @@ class vm:
         function = NkScope(
             parent=self.frame.scope,
             body_definition=inst.body_definition,
-            parameter_definition=inst.parameter_definition
+            parameter_definition=inst.parameter_definition,
         )
 
         self.stack.append(function)
+
+    def CreateList(self, inst):
+        items = []
+        for i in range(inst.length):
+            items.append(self.stack.pop())
+
+        items.reverse()
+
+        nk_list = NkList(items)
+        self.stack.append(nk_list)
+
+    def CreateSet(self, inst):
+        items = []
+        for i in range(inst.length):
+            items.append(self.stack.pop())
+
+        items.reverse()
+
+        nk_set = NkSet(items)
+        self.stack.append(nk_set)
+
+    def Call(self, inst):
+        """
+        pops a NkScope off the stack, and a list of NkArgument off the stack.
+        executes NkScope.call with the NkArguments obj as the argument.
+        """
+
+        # pop NkScope off the stack
+        scope = self.stack.pop()
+
+        # pop the arguments off the stack
+        arguments = self.stack.pop()
+
+        # execute NkScope.call with arguments passed in
+        return_value = scope.call(self, arguments)
+
+        # append resulting instance to stack:
+        self.stack.append(return_value)
+
+    def CreateArgument(self, inst):
+        value = self.stack.pop()
+        bind_to = (
+            inst.bind_to
+            if inst.bind_to is not None
+            else NK_UNBOUND
+        )
+
+        argument = NkArgument(value, bind_to)
+        self.stack.append(argument)
+
+    def CreateSpreadArgument(self, inst):
+        value = self.stack.pop()
+        if not isinstance(value, NkList):
+            raise Exception("spread argument requires a list")
+
+        spread_argument = NkSpreadArgument(value)
+
+        self.stack.append(spread_argument)
+
+    def SpreadTerm(self, inst):
+        obj = self.stack.pop()
+
+        valid_types = (NkList, NkScope, NkSet)
+        if not isinstance(obj, valid_types):
+            raise Exception("invalid spread term, must be a list, scope, or set.")
+
+        obj.collect_to(self.frame.scope)
+
+    def Equal(self, inst):
+        rhs = self.stack.pop()
+        lhs = self.stack.pop()
+
+        if rhs == lhs:
+            self.stack.append(NK_TRUE)
+        else:
+            self.stack.append(NK_FALSE)
+
+    def Return(self, inst):
+        return_value = self.stack.pop()
+        
+        # set the completion status:
+        self.frame.completion = ReturnCompletion(return_value)
+
+        # jump to end of this stack's instruction list:
+        self.frame.ip = len(
+            self.frame.definition.instructions
+        )
+
+    def Collect(self, inst):
+        collect_value = self.stack.pop()
+        
+        # set the completion status:
+        self.frame.completion = CollectCompletion(collect_value)
+
+        # jump to end of this stack's instruction list:
+        self.frame.ip = len(
+            self.frame.definition.instructions
+        )
+
+    def Leave(self, inst):
+        # set the completion status:
+        self.frame.completion = LeaveCompletion()
+
+        # jump to end of this stack's instruction list:
+        self.frame.ip = len(
+            self.frame.definition.instructions
+        )
+
+    def Subtract(self, inst): 
+        raise NotImplementedError()
+
+    def Add(self, inst): 
+        rhs = self.stack.pop()
+        lhs = self.stack.pop()
+
+        self.stack.append(
+            lhs.add(rhs)
+        )
+
+    def Divide(self, inst): 
+        raise NotImplementedError()
+
+    def Multiply(self, inst): 
+        raise NotImplementedError()
+
+    def Exponent(self, inst): 
+        raise NotImplementedError()
+
+    def Modulo(self, inst): 
+        raise NotImplementedError()
+
+    def Xor(self, inst): 
+        raise NotImplementedError()
+
+    def BwAnd(self, inst): 
+        raise NotImplementedError()
+
+    def BwOr(self, inst): 
+        raise NotImplementedError()
+
+    def And(self, inst): 
+        raise NotImplementedError()
+
+    def Or(self, inst): 
+        raise NotImplementedError()
+
+    def GreaterThanOrEqual(self, inst): 
+        raise NotImplementedError()
+
+    def LessThanOrEqual(self, inst): 
+        raise NotImplementedError()
+
+    def LessThan(self, inst): 
+        rhs = self.stack.pop()
+        lhs = self.stack.pop()
+
+        self.stack.append(lhs.less_than(rhs))
+
+    def GreaterThan(self, inst): 
+        raise NotImplementedError()
+
+
+##########################################
+############ Helper Classes ##############
+##########################################
+
+class Frame:
+
+    def __init__(self, scope, definition):
+        self.scope = scope
+        self.definition = definition
+        self.ip = 0
+
+        self.completion = NormalCompletion()
+        self.control_types = definition.control_types or []
+
+class ReturnCompletion:
+
+    def __init__(self, value):
+        self.value = value
+
+    def apply(self, vm):
+        if RETURN_DEST not in vm.frame.control_types:
+            vm.frame.completion = self
+
+            vm.frame.ip = len(
+                vm.frame.definition.instructions
+            )
+
+        else:
+            vm.stack.append(self.value)
+
+class CollectCompletion:
+
+    def __init__(self, value):
+        self.value = value
+
+    def apply(self, vm):
+        if COLLECT_DEST not in vm.frame.control_types:
+            vm.frame.completion = self
+
+            vm.frame.ip = len(
+                vm.frame.definition.instructions
+            )
+
+        else:
+            vm.stack.append(self.value)
+
+class LeaveCompletion:
+
+    def apply(self, vm):
+        if LEAVE_DEST not in vm.frame.control_types:
+            vm.frame.completion = self
+
+            vm.frame.ip = len(
+                vm.frame.definition.instructions
+            )
+
+class ContinueCompletion: 
+
+    def apply(self, vm):
+        if CONTINUE_DEST not in vm.frame.control_types:
+            vm.frame.completion = self
+
+            vm.frame.ip = len(
+                vm.frame.definition.instructions
+            )
+
+class NormalCompletion: 
+    def apply(self, vm): pass
+
+
