@@ -12,12 +12,16 @@ class VirtualMachine:
 
         self.ins_lookup = {
             Load: self.Load,
+            LoadMember: self.LoadMember,
             Store: self.Store,
             PushConst: self.PushConst,
             CreateScope: self.CreateScope,
             CreateFunction: self.CreateFunction,
+            CreateArgument: self.CreateArgument,
             CreateList: self.CreateList,
             CreateSet: self.CreateSet,
+            Call: self.Call,
+            CallBuiltIn: self.CallBuiltIn,
             Equal: self.Equal,
             JumpIfFalse: self.JumpIfFalse,
             Jump: self.Jump,
@@ -121,6 +125,16 @@ class VirtualMachine:
         value = self.frame.scope.resolve(inst.name)
         self.stack.append(value)
 
+    def LoadMember(self, inst):
+        """
+        loads the a member of the instruction's value onto the stack.
+        """
+        owner = self.stack.pop()
+        name = inst.value
+        member = owner.resolve(name)
+
+        self.stack.append(member)
+
     def JumpIfFalse(self, inst):
         value = self.stack.pop()
         if value == NK_FALSE: self.frame.ip = inst.target
@@ -187,10 +201,19 @@ class VirtualMachine:
         arguments = self.stack.pop()
 
         # execute NkScope.call with arguments passed in
-        return_value = scope.call(self, arguments)
+        scope.call(self, arguments)
 
-        # append resulting instance to stack:
-        self.stack.append(return_value)
+    def CallBuiltIn(self, inst):
+        function = inst.function
+
+        # arguments are already bound to correct parameter names.
+        arg_names = inst.parameter_names
+        arguments = []
+        for name in arg_names:
+            arguments.append(self.frame.scope.resolve(name))
+        
+        result = function(self, *arguments)
+        self.stack.append(result)
 
     def CreateArgument(self, inst):
         value = self.stack.pop()

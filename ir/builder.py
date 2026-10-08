@@ -1,7 +1,7 @@
 from ir.definitions import ScopeDefinition, Constant
 from ir.contexts import SwitchContext
-from ir.instructions import *
-from nast.nodes import *
+import ir.instructions as ir
+import nast.nodes as ast
 
 RETURN_DEST = "return_dest"
 LEAVE_DEST = "leave_dest"
@@ -62,38 +62,38 @@ class IRBuilder:
     ######################################################
 
     def __emit_load(self, node): 
-        if isinstance(node, Identifier):
+        if isinstance(node, ast.Identifier):
             self.emit(
-                Load(node.value)
+                ir.Load(node.value)
             )
 
-        elif isinstance(node, Member):
+        elif isinstance(node, ast.Member):
             self.__emit_load(node.target)
 
             self.emit(
-                LoadMember(node.name.value)
+                ir.LoadMember(node.name.value)
             )
 
-        elif isinstance(node, Subscript):
+        elif isinstance(node, ast.Subscript):
             raise NotImplementedError()
 
         else:
             raise Exception(f"Invalid Load target {node}")
 
     def __emit_store(self, node):
-        if isinstance(node, Identifier):
+        if isinstance(node, ast.Identifier):
             self.emit(
-                Store(node.value)
+                ir.Store(node.value)
             )
 
-        elif isinstance(node, Member):
+        elif isinstance(node, ast.Member):
             self.__emit_load(node.target)
 
             self.emit(
-                StoreMember(node.name.value)
+                ir.StoreMember(node.name.value)
             )
 
-        elif isinstance(node, Subscript):
+        elif isinstance(node, ast.Subscript):
             raise NotImplementedError()
 
         else: 
@@ -113,7 +113,7 @@ class IRBuilder:
         self.definition_stack.pop()
 
         self.emit(
-            CreateScope(definition)
+            ir.CreateScope(definition)
         )
 
     def visit_Block(self, node):
@@ -124,33 +124,33 @@ class IRBuilder:
         for item in node.items:
             self.dispatch(item)
 
-        self.emit(CreateList(len(node.items)))
+        self.emit(ir.CreateList(len(node.items)))
 
     def visit_Set(self, node):
         for item in node.items:
             self.dispatch(item)
 
-        self.emit(CreateSet(len(node.items)))
+        self.emit(ir.CreateSet(len(node.items)))
 
     def visit_Leave(self, node):
-        self.emit(Leave())
+        self.emit(ir.Leave())
 
     def visit_Continue(self, node):
-        self.emit(Continue())
+        self.emit(ir.Continue())
 
     def visit_Collect(self, node):
         if node.child:
             self.dispatch(node.child)
 
-        self.emit(Collect())
+        self.emit(ir.Collect())
 
     def visit_Return(self, node):
         if node.child:
             self.dispatch(node.child)
         else:
             self.emit(
-                PushConst(
-                    Constant("none", None)
+                ir.PushConst(
+                    ir.Constant("none", None)
                 )
             )
 
@@ -189,15 +189,15 @@ class IRBuilder:
             self.dispatch(node.default)
         else:
             self.emit(
-                PushConst(
-                    Constant(
+                ir.PushConst(
+                    ir.Constant(
                         type_name="unbound",
                         value=None
                     )
                 )
             )
 
-        self.emit(Store(node.identifier.value))
+        self.emit(ir.Store(node.identifier.value))
 
     def visit_RestParameter(self, node):
         raise NotImplementedError()
@@ -213,7 +213,7 @@ class IRBuilder:
         parameter_definition = self.dispatch(node.parameters)
 
         self.emit(
-            CreateFunction(
+            ir.CreateFunction(
                 body_definition,
                 parameter_definition, 
                 control_types=[RETURN_DEST, LEAVE_DEST, COLLECT_DEST]
@@ -233,11 +233,11 @@ class IRBuilder:
 
     def visit_While(self, node):
 
-        start_jump = Jump(
+        start_jump = ir.Jump(
             target = self.curr_inst_length
         )
 
-        end_jump = JumpIfFalse(target=None)
+        end_jump = ir.JumpIfFalse(target=None)
 
         self.dispatch(node.expr)
         self.emit(end_jump)
@@ -258,7 +258,7 @@ class IRBuilder:
 
         self.dispatch(node.condition)
 
-        end_jump = JumpIfFalse(target=None)
+        end_jump = ir.JumpIfFalse(target=None)
         self.emit(end_jump)
 
         self.control_types_stack.append([CONTINUE_DEST, LEAVE_DEST])
@@ -266,7 +266,7 @@ class IRBuilder:
         self.dispatch(node.scope)
         self.dispatch(node.update)
 
-        self.emit(Jump(target=loop_start))
+        self.emit(ir.Jump(target=loop_start))
 
         end_jump.target = self.curr_inst_length
 
@@ -288,12 +288,12 @@ class IRBuilder:
         for condition, scope in branches:
             self.dispatch(condition)
 
-            skip_branch = JumpIfFalse(target=None)
+            skip_branch = ir.JumpIfFalse(target=None)
             self.emit(skip_branch)
 
             self.dispatch(scope)
 
-            end_jump = Jump(None)
+            end_jump = ir.Jump(None)
             self.emit(end_jump)
             end_jumps.append(end_jump)
 
@@ -314,7 +314,7 @@ class IRBuilder:
         self.switch_stack.append(switch_context)
 
         self.__emit_load(node.expr)
-        self.emit(Store(switch_context.expr_id))
+        self.emit(ir.Store(switch_context.expr_id))
         
         self.control_types_stack.append([COLLECT_DEST])
 
@@ -331,11 +331,11 @@ class IRBuilder:
         self.dispatch(node.literal)
 
         switch_expr_id = self.curr_switch.expr_id
-        self.emit(Load(switch_expr_id))
+        self.emit(ir.Load(switch_expr_id))
 
-        self.emit(Equal())
+        self.emit(ir.Equal())
         
-        jump = JumpIfFalse(target=None)
+        jump = ir.JumpIfFalse(target=None)
         self.emit(jump)
 
         # all child scopes can return control flow to a case scope:
@@ -360,48 +360,48 @@ class IRBuilder:
 
     def visit_SpreadTerm(self, node):
         self.dispatch(node.expr)
-        self.emit(SpreadTerm())
+        self.emit(ir.SpreadTerm())
 
     def visit_BinaryOperation(self, node):
         self.dispatch(node.left)
         self.dispatch(node.right)
         token_type_str = node.op_token.type.name
         op_inst_lookup = {
-            "SUB": Subtract,
-            "ADD": Add,
-            "DIV": Divide,
-            "MULT": Multiply,
-            "EXPONENT": Exponent,
-            "MODULO": Modulo,
-            "XOR": Xor,
-            "BW_AND": BwAnd,
-            "BW_OR": BwOr,
-            "AND": And,
-            "OR": Or,
-            "EQ": Equal,
-            "NOT_EQ": NotEqual,
-            "GREATER_EQ": GreaterThanOrEqual,
-            "LESS_EQ": LessThanOrEqual,
-            "LESS": LessThan,
-            "GREATER": GreaterThan,
+            "SUB": ir.Subtract,
+            "ADD": ir.Add,
+            "DIV": ir.Divide,
+            "MULT": ir.Multiply,
+            "EXPONENT": ir.Exponent,
+            "MODULO": ir.Modulo,
+            "XOR": ir.Xor,
+            "BW_AND": ir.BwAnd,
+            "BW_OR": ir.BwOr,
+            "AND": ir.And,
+            "OR": ir.Or,
+            "EQ": ir.Equal,
+            "NOT_EQ": ir.NotEqual,
+            "GREATER_EQ": ir.GreaterThanOrEqual,
+            "LESS_EQ": ir.LessThanOrEqual,
+            "LESS": ir.LessThan,
+            "GREATER": ir.GreaterThan,
         }
         self.emit(op_inst_lookup[token_type_str]())
 
     def visit_Call(self, node):
         self.dispatch(node.arguments)
         self.__emit_load(node.expr)
-        self.emit(Call())
+        self.emit(ir.Call())
 
     def visit_Arguments(self, node):
         for argument in node.arguments:
             self.dispatch(argument)
 
-        self.emit(CreateList(len(node.arguments)))
+        self.emit(ir.CreateList(len(node.arguments)))
 
     def visit_Argument(self, node):
         self.dispatch(node.expr)
         self.emit(
-            CreateArgument(
+            ir.CreateArgument(
                 node.bind_to.value
                 if node.bind_to
                 else None
@@ -410,15 +410,15 @@ class IRBuilder:
 
     def visit_SpreadArgument(self, node):
         self.dispatch(node.expr)
-        self.emit(CreateSpreadArgument())
+        self.emit(ir.CreateSpreadArgument())
 
     def visit_Subscript(self, node):
         self.__emit_load(node)
 
     def visit_Integer(self, node):
         self.emit(
-            PushConst(
-                Constant(
+            ir.PushConst(
+                ir.Constant(
                     type_name="int",
                     value=node.value
                 )
@@ -427,8 +427,8 @@ class IRBuilder:
 
     def visit_Float(self, node):
         self.emit(
-            PushConst(
-                Constant(
+            ir.PushConst(
+                ir.Constant(
                     type_name="float",
                     value=node.value
                 )
@@ -437,8 +437,8 @@ class IRBuilder:
 
     def visit_String(self, node):
         self.emit(
-            PushConst(
-                Constant(
+            ir.PushConst(
+                ir.Constant(
                     type_name="string",
                     value=node.value
                 )
@@ -447,8 +447,8 @@ class IRBuilder:
 
     def visit_Boolean(self, node):
         self.emit(
-            PushConst(
-                Constant(
+            ir.PushConst(
+                ir.Constant(
                     type_name="boolean",
                     value=node.value
                 )
@@ -457,8 +457,8 @@ class IRBuilder:
 
     def visit_Hexadecimal(self, node):
         self.emit(
-            PushConst(
-                Constant(
+            ir.PushConst(
+                ir.Constant(
                     type_name="hexadecimal",
                     value=int(node.value, 16)
                 )
@@ -467,8 +467,8 @@ class IRBuilder:
 
     def visit_BinaryNumber(self, node):
         self.emit(
-            PushConst(
-                Constant(
+            ir.PushConst(
+                ir.Constant(
                     type_name="binary",
                     value=int(node.value, 2)
                 )
@@ -477,8 +477,8 @@ class IRBuilder:
 
     def visit_NullValue(self, node):
         self.emit(
-            PushConst(
-                Constant(
+            ir.PushConst(
+                ir.Constant(
                     type_name="null",
                     value=None
                 )
@@ -487,8 +487,8 @@ class IRBuilder:
 
     def visit_NoneValue(self, node):
         self.emit(
-            PushConst(
-                Constant(
+            ir.PushConst(
+                ir.Constant(
                     type_name="none",
                     value=None
                 )

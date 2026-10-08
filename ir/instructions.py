@@ -1,3 +1,4 @@
+from typing import Callable
 from dataclasses import dataclass
 from ir.definitions import ScopeDefinition, Constant
 
@@ -41,6 +42,11 @@ class CreateSpreadArgument(Instruction): pass
 
 @dataclass
 class Call(Instruction): pass
+
+@dataclass
+class CallBuiltIn(Instruction):
+    function: Callable
+    parameter_names: list[str]
 
 @dataclass 
 class CreateList(Instruction):

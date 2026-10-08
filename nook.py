@@ -1,10 +1,11 @@
 import sys
 import os
-
-from runtime import Runtime
-from nast.evaluator import Evaluator
 from tokenizer import Tokenizer
 from parser import Parser
+from ir.builder import IRBuilder
+from vm.interpreter import VirtualMachine
+from runtime.values import NkScope
+from runtime.builtins import inject_builtins
 
 if __name__ == "__main__":
     args = sys.argv
@@ -20,13 +21,21 @@ if __name__ == "__main__":
         tokenizer = Tokenizer(source)
         parser = Parser(tokenizer)
 
-
-        runtime = Runtime()
-        evaluator = Evaluator(runtime)
-
         filepath = os.path.basename(args[1])
 
-        evaluator.name_hints.append(filepath)
-        evaluator.dispatch(parser.file())
-        evaluator.name_hints.pop()
+        ir_builder = IRBuilder()
 
+        ir = ir_builder.build(parser.file())
+
+        vm = VirtualMachine()
+
+        builtins_scope = NkScope(
+            parent=None,
+            body_definition=ir,
+            parameter_definition=None,
+            name="__builtins__"
+        )
+
+        inject_builtins(builtins_scope)
+
+        vm.execute(builtins_scope, ir)

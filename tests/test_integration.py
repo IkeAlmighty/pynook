@@ -200,3 +200,5 @@ class TestIntegration(unittest.TestCase):
         """)
 
         self.assertEqual(scope.resolve("a"), NkInt(10))
+
+

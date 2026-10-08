@@ -730,7 +730,7 @@ class Parser:
             self._eat(TokenTypes.COMMA)
             args.append(self._arg()) 
 
-        if self.curr_token.type == TokenTypes.SREAD:
+        if self.curr_token.type == TokenTypes.SPREAD:
             if len(args) == 0:
                 raise Exception("no target for spread")
 

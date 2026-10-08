@@ -20,13 +20,22 @@ class NkScope(NkValue):
         "__parent__"
     }
 
-    def __init__(self, parent=None, body_definition=None, parameter_definition=None, name=None, is_file_scope=False):
+    def __init__(
+        self, 
+        parent=None, 
+        body_definition=None, 
+        parameter_definition=None, 
+        name=None, 
+        is_file_scope=False, 
+    ):
         self.parent = parent
         self.members = {}
         self.parameter_definition = parameter_definition
         self.body_definition = body_definition
         self.name = name
         self.aliases = set()
+
+        self.return_value = NK_NONE
 
         # initialize reserved members:
         self.members["__scope__"] = self
@@ -118,8 +127,6 @@ class NkScope(NkValue):
             new_scope,
             self.body_definition
         )
-
-        return new_scope.return_value
 
     def __gather_argument_bindings(self, arguments, parameters):
         bindings = {}
