@@ -6,6 +6,10 @@ class Statement(Node): pass
 class Expr(Statement): pass
 class Literal(Expr): pass
 
+@dataclass 
+class File(Node):
+    block: Block
+
 @dataclass
 class Block(Node):
     statements: list[ Statement ]
@@ -83,7 +87,7 @@ class TryCatch(Statement):
 
 @dataclass
 class Parameters(Node):
-    params: list[ RestParameter | Parameter ]
+    parameters: list[ RestParameter | Parameter ]
 
 @dataclass 
 class Parameter(Node):
@@ -96,7 +100,7 @@ class RestParameter(Node):
 
 @dataclass
 class DefineFunction(Node):
-    params: Parameters
+    parameters: Parameters
     scope: Scope
     has_root: bool
 

@@ -47,14 +47,14 @@ Scopes can also be created with JSON syntax. JSON is actually a subset of the No
 
 One quirk of Nook is that `=` is not used for assignment. Instead, `:` is used. `=` is still used in boolean operators such as `==`, `<=`, and `>=`.
 
-You might have noticed that I introduced some primitive types in example above. Nook as primitives for `string`, `int`, `float`, `boolean`, `binary`, `hexadecimal`, `list`, and `set`. Types are dynamically attached during assignment.
+You might have noticed that I introduced some primitive types in the example above. Nook has primitives for `string`, `int`, `float`, `boolean`, `binary`, `hexadecimal`, `list`, and `set`. Types are dynamically attached during assignment.
 
 ### Name Resolution.
-Every scope has a parent scope. When a variable name is referenced, resolution climbs from the current scope and up it's parent tree until it finds a matching name. Builtins live in the implicit 'main' scope that the runtime creates, which is not directly editable since the next scope down would be a file scope.
+Every scope has a parent scope. When a variable name is referenced, resolution climbs from the current scope and up it's parent tree until it finds a matching name. Builtins live in the implicit 'builtins' scope that the runtime creates at the root of the scope tree, and the entry file constitutes the first user defined scope in the tree (a direct child of the builtins scope).
 
 ## Language Constructs
 
-In the runtime, every scope contains an AST of itself, variables, a parent, and a type. Keep this in mind as you read about the language.
+In the runtime, every scope contains members, a name (which can be `none`), and a parent (only the `builtins` scope has a parent of value `none`). Keep this in mind as you read about the language.
 
 ### Primitives
 
@@ -140,15 +140,17 @@ In the runtime, every scope contains an AST of itself, variables, a parent, and 
     # prints 0 through 200
 
 
-### Functions
+### Deferred Scopes (Functions)
 
-A function is a scope that is saved in a variable to be executed later:
+A deferred scope is a scope whose body has not been executed. When deferred scopes are executed, they create a copy of themselves for the execution, leaving the original state of the deferred scope untouched.  
 
     my_function: (param1, param2) {
         print(param1, param2)
     }
 
-    my_scope_function('hello', 'world')
+    # instance becomes a copy of my_function, but with the 
+    # parameter definition and body definition of my_function having been ran.
+    instance: my_function('hello', 'world')
 
 ### Root Functions
 
@@ -176,7 +178,7 @@ Default parameter values can be written the same as assignments in Nook:
 
 ### try..catch
 
-Exceptions can be thrown via the `throw` keyword, to be caught in a older scope:
+Exceptions can be thrown via the `throw` keyword, to be caught in a parent scope:
     
     some_func: () {
         throw Exception('throw me!')
@@ -197,21 +199,20 @@ Exceptions are just scope objects. There are no special rules for them.
     my_scope_copy: { ..my_scope, new_entry: "extra" }
     my_list_copy: [ ..my_scope.my_list, "new item!" }
 
+    # can also be used on function parameters as a postfix for capturing remaining arguments:
 
-    # can also be used on function parameters for capturing remaining arguments:
-
-    my_func: (arg1, ..rest) {
+    my_func: (arg1, rest..) {
         type(rest) == types.LIST
     }
 
     # as well as used in arguments to distribute items per parameter:
 
-    my_func(..my_scope) # scopes will match field names to parameter names
-    my_func(..my_list) # lists will just distribute based on the order of the items
+    my_func(my_scope..) # scopes will match field names to parameter names
+    my_func(my_list..) # lists will just distribute based on the order of the items
 
 ### Collect, Leave, Return (Control Flow and Scope Promotion)
 
-There is no `break` keyword in Nook, like other c-like languages. Instead, Nook leans into it's scopey-ness, and introduces to new keywords: `leave` and `collect`. `return` behaves the same as other c-like languages, returning some value to the nearest scope outside the current function definition.
+There is no `break` keyword in Nook, like other c-like languages. Instead, Nook leans into it's scopey-ness, and introduces to new keywords: `leave` and `collect`. `return` behaves the same as other c-like languages, returning some value to the nearest return scope outside the current function definition.
 
 `leave` is similar to `break`, but it can be used outside of loops. `leave` always stops the execution of the current scope, whether that scope belongs to a `while` loop, `switch case`, or function body.
 

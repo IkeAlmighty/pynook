@@ -53,11 +53,11 @@ class Parser:
         self.tokenizer = snapshot.tokenizer 
         self.curr_token = snapshot.curr_token
 
+################################################################################
+
     def file(self):
         block = self._block()
-        row = self.curr_token.row
-        col = self.curr_token.col
-        return Nodes.Scope(block, row, col)
+        return Nodes.File(block)
 
     def _block(self):
         statements = []

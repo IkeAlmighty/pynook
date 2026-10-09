@@ -57,7 +57,7 @@ class BuiltIns:
         # normalize the module name
         module_name = filepath.value
 
-        if not module_name.endswith('nk') and not module_name.endswith('.json'):
+        if not module_name.endswith('.nk') and not module_name.endswith('.json'):
             module_name = module_name + ".nk"
 
         # open the file:

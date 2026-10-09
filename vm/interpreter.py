@@ -14,6 +14,7 @@ class VirtualMachine:
             Load: self.Load,
             LoadMember: self.LoadMember,
             Store: self.Store,
+            StoreMember: self.StoreMember,
             PushConst: self.PushConst,
             CreateScope: self.CreateScope,
             CreateFunction: self.CreateFunction,
@@ -22,6 +23,9 @@ class VirtualMachine:
             CreateSet: self.CreateSet,
             Call: self.Call,
             CallBuiltIn: self.CallBuiltIn,
+            Collect: self.Collect,
+            Leave: self.Leave,
+            Return: self.Return,
             Equal: self.Equal,
             JumpIfFalse: self.JumpIfFalse,
             Jump: self.Jump,
@@ -61,6 +65,9 @@ class VirtualMachine:
         elif type_name == "unbound": 
             return NK_UNBOUND
 
+        elif type_name == "collectall":
+            return NK_COLLECT_ALL
+
         else:
             raise Exception(f"no materialize branch for {type_name}")
             
@@ -81,6 +88,7 @@ class VirtualMachine:
                 self.ins_lookup[type(instruction)](instruction)
 
         finally:
+
             # first, promote any resolvable members in this
             # frame's scope to their owners:
 
@@ -117,6 +125,20 @@ class VirtualMachine:
             value.aliases.add(inst.name)
 
         self.frame.scope.assign(inst.name, value)
+
+    def StoreMember(self, inst):
+        name = inst.name
+        owner = self.stack.pop()
+        value = self.stack.pop()
+
+        if isinstance(value, NkScope):
+            # assign name if the value doesn't have one
+            if value.name is None:
+                value.name = inst.name
+
+            value.aliases.add(inst.name)
+        
+        owner.assign(name, value)
 
     def Load(self, inst):
         """
@@ -268,7 +290,7 @@ class VirtualMachine:
         collect_value = self.stack.pop()
         
         # set the completion status:
-        self.frame.completion = CollectCompletion(collect_value)
+        self.frame.completion = CollectCompletion(collect_value, self.frame.scope)
 
         # jump to end of this stack's instruction list:
         self.frame.ip = len(
@@ -276,6 +298,7 @@ class VirtualMachine:
         )
 
     def Leave(self, inst):
+
         # set the completion status:
         self.frame.completion = LeaveCompletion()
 
@@ -370,10 +393,12 @@ class ReturnCompletion:
 
 class CollectCompletion:
 
-    def __init__(self, value):
+    def __init__(self, value, scope):
         self.value = value
+        self.scope = scope
 
     def apply(self, vm):
+
         if COLLECT_DEST not in vm.frame.control_types:
             vm.frame.completion = self
 
@@ -382,7 +407,17 @@ class CollectCompletion:
             )
 
         else:
-            vm.stack.append(self.value)
+            if self.value == NK_COLLECT_ALL:
+                vm.stack.append(NK_NONE)
+
+                # promote all members:
+                for name in self.scope.unreserved_members:
+                    owner = vm.frame.scope.resolve_owner(name)
+                    if owner:
+                        owner.assign(name, self.scope.resolve(name))
+            else:
+                vm.stack.append(self.value)
+
 
 class LeaveCompletion:
 

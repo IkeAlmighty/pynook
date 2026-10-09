@@ -63,6 +63,7 @@ class NkScope(NkValue):
         return result
 
     def resolve(self, name):
+
         curr = self
 
         while curr:
@@ -339,11 +340,22 @@ class NkNone(NkValue): pass
 @dataclass(frozen=True)
 class NkNull(NkValue): pass
 
+# used for argument binding:
 @dataclass
 class NkUnbound(NkValue): pass
+
+# used for operator traps:
+@dataclass
+class NkUnresolved(NkValue): pass
+
+@dataclass
+class NkCollectAll(NkValue): pass
 
 NK_NONE = NkNone()
 NK_NULL = NkNull()
 NK_UNBOUND = NkUnbound()
 NK_FALSE = NkBool('false')
 NK_TRUE = NkBool('true')
+NK_UNRESOLVED = NkUnresolved()
+NK_COLLECT_ALL = NkCollectAll()
+

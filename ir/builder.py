@@ -1,5 +1,4 @@
 from ir.definitions import ScopeDefinition, Constant
-from ir.contexts import SwitchContext
 import ir.instructions as ir
 import nast.nodes as ast
 
@@ -18,7 +17,7 @@ class IRBuilder:
         self.definition_stack = [ScopeDefinition()]
 
         # some helpful stacks:
-        self.switch_stack = []
+        self.switch_expr_stack = []
 
         # scope types annotations:
         self.control_types_stack = [[]]
@@ -32,11 +31,11 @@ class IRBuilder:
         return self.definition_stack[-1]
 
     @property
-    def curr_switch(self):
-        if len(self.switch_stack) == 0:
+    def curr_switch_expr(self):
+        if len(self.switch_expr_stack) == 0:
             raise Exception("switch context stack is empty")
 
-        return self.switch_stack[-1]
+        return self.switch_expr_stack[-1]
 
     @property
     def curr_inst_length(self):
@@ -103,6 +102,13 @@ class IRBuilder:
     ##                 VISITOR METHODS                 ##
     #####################################################
 
+    def visit_File(self, node):
+        self.control_types_stack.append([COLLECT_DEST, RETURN_DEST, LEAVE_DEST])
+
+        # file is really just a wrapper for scope, that adds
+        # control type hints for the file scope definition
+        self.visit_Scope(node)
+        
     def visit_Scope(self, node):
         definition = ScopeDefinition(
             control_types=self.control_types
@@ -141,6 +147,12 @@ class IRBuilder:
     def visit_Collect(self, node):
         if node.child:
             self.dispatch(node.child)
+        else:
+            self.emit(
+                ir.PushConst(
+                    ir.Constant("collectall", None)
+                )
+            )
 
         self.emit(ir.Collect())
 
@@ -154,7 +166,7 @@ class IRBuilder:
                 )
             )
 
-        self.emit(Return())
+        self.emit(ir.Return())
 
     def visit_Ignore(self, node):
         raise NotImplementedError()
@@ -203,7 +215,9 @@ class IRBuilder:
         raise NotImplementedError()
 
     def visit_DefineFunction(self, node):
-        body_definition = ScopeDefinition()
+        body_definition = ScopeDefinition(
+            control_types=[RETURN_DEST, LEAVE_DEST, COLLECT_DEST]
+        )
 
         self.definition_stack.append(body_definition)
 
@@ -215,9 +229,8 @@ class IRBuilder:
         self.emit(
             ir.CreateFunction(
                 body_definition,
-                parameter_definition, 
-                control_types=[RETURN_DEST, LEAVE_DEST, COLLECT_DEST]
-            ),
+                parameter_definition
+            )
         )
         
     def visit_Assignment(self, node):
@@ -310,28 +323,23 @@ class IRBuilder:
 
     def visit_Switch(self, node):
 
-        switch_context = SwitchContext()
-        self.switch_stack.append(switch_context)
+        # store the expr node in the switch expression stack
+        # so case statements can recreate it's value
+        # later (allows expr to be evaluated per each
+        # case):
+        self.switch_expr_stack.append(node.expr)
 
-        self.__emit_load(node.expr)
-        self.emit(ir.Store(switch_context.expr_id))
-        
+        # dispatch the scope with correct control types:
         self.control_types_stack.append([COLLECT_DEST])
 
         self.dispatch(node.scope)
 
         self.control_types_stack.pop()
+        self.switch_expr_stack.pop()
 
-        self.switch_stack.pop()
-
-        for jump in switch_context.end_jumps:
-            jump.target = self.curr_inst_length
-        
     def visit_Case(self, node):
         self.dispatch(node.literal)
-
-        switch_expr_id = self.curr_switch.expr_id
-        self.emit(ir.Load(switch_expr_id))
+        self.dispatch(self.curr_switch_expr)
 
         self.emit(ir.Equal())
         
@@ -346,12 +354,6 @@ class IRBuilder:
         self.control_types_stack.pop()
 
         jump.target = self.curr_inst_length
-
-        # skip the rest of the switch (this can be avoided 
-        # with a collect ending the case scope)
-        end_jump = Jump(target=None)
-        self.curr_switch.end_jumps.append(end_jump)
-        self.emit(end_jump)
 
     def visit_Default(self, node):
         self.control_types_stack.append([LEAVE_DEST, COLLECT_DEST, RETURN_DEST])

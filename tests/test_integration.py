@@ -1,5 +1,5 @@
 import unittest
-from ir.builder import IRBuilder
+from ir.builder import IRBuilder, COLLECT_DEST, RETURN_DEST, LEAVE_DEST
 from vm.interpreter import VirtualMachine
 from tokenizer import Tokenizer
 from parser import Parser
@@ -43,6 +43,11 @@ class TestIntegration(unittest.TestCase):
             source = f.read()
             return self.load_source(source)
 
+
+    ##################################################################
+    ################### TEST METHODS #################################
+    ##################################################################
+
     def test_load_source(self):
         scope = self.load_source("a: 5")
 
@@ -56,7 +61,6 @@ class TestIntegration(unittest.TestCase):
         self.assertEqual(scope.resolve("__scope__").name, scope.name)
         self.assertEqual(scope.resolve("__parent__"), scope.parent)
         self.assertEqual(scope.resolve("__name__"), scope.name)
-
 
     def test_multiple_assignments(self):
         scope = self.load_source("""
@@ -75,15 +79,17 @@ class TestIntegration(unittest.TestCase):
         scope = self.load_source("""
             a: {
                 b: 5
+                c: {
+                    d: 6
+                }
             }
         """)
 
         a = scope.resolve("a")
+        c = a.resolve("c")
 
-        self.assertEqual(
-            a.resolve("b"),
-            NkInt(5)
-        )
+        self.assertEqual(a.resolve("b"), NkInt(5))
+        self.assertEqual(c.resolve("d"), NkInt(6))
 
     def test_file_scope_parent(self):
         scope = self.load_source("a: 5")
@@ -158,18 +164,23 @@ class TestIntegration(unittest.TestCase):
         )
 
     def test_if_statement(self):
+        # test that inner scope collects resolvable
+        # values after execution:
         scope = self.load_source("""
             a: 2
             if a == 2 {
                 a: 3
+                c: 6
             }
         """)
 
-        self.assertEqual(
-            scope.resolve("a"),
-            NkInt(3)
-        )
+        self.assertEqual(scope.resolve("a"), NkInt(3))
+        with self.assertRaises(Exception):
+            scope.resolve("c")
 
+
+        # test that the if statement does not run on falsey
+        # conditions:
         scope = self.load_source("""
             a: 1
             if a == 2 {
@@ -177,11 +188,11 @@ class TestIntegration(unittest.TestCase):
             }
         """)
 
-        self.assertEqual(
-            scope.resolve("a"),
-            NkInt(1)
-        )
+        self.assertEqual(scope.resolve("a"), NkInt(1))
 
+
+        # test that members that cannot be resolved by parent
+        # scope are not collected to parent scope:
         scope = self.load_source("""
             if true {
                 helper: 5
@@ -201,4 +212,75 @@ class TestIntegration(unittest.TestCase):
 
         self.assertEqual(scope.resolve("a"), NkInt(10))
 
+    def test_store_member(self):
+        """
+        test that members can be assigned new values.
+        """
+        scope = self.load_source("""
+            a: { b: 5 }
+            a.b: 7
+        """)
+        
+        a = scope.resolve("a")
+        b = a.resolve("b")
+        self.assertEqual(b, NkInt(7))
+        self.assertEqual(a.name, "a")
+
+    def test_define_function(self):
+        """
+        tests that a deferred scope is properly defined.
+        """
+
+        scope = self.load_source("""
+            a: (c) { b: 3 }
+        """)
+
+        a = scope.resolve("a")
+
+        # the deferred scope should not run on creation:
+        with self.assertRaises(Exception):
+            a.resolve("b")
+
+        # the deferred scope should contain a body_definition 
+        # with two instructions:
+        self.assertTrue(hasattr(a, "body_definition"))
+        self.assertEqual(len(a.body_definition.instructions), 2)
+
+        # the deferred scope should contain a parameter_definition
+        # with two instruction:
+        self.assertTrue(hasattr(a, "parameter_definition"))
+        self.assertEqual(len(a.parameter_definition.instructions), 2)
+
+    def test_collect(self):
+        scope = self.load_source("""
+            a: 3
+            b: {
+                a: 6
+                c: 3
+                collect
+            }
+        """)
+
+        a = scope.resolve("a")
+        self.assertEqual(a, NkInt(6))
+
+    def test_switch_case(self):
+        scope = self.load_source("""
+            a: "hello"
+
+            switch a {
+                case "hello" {
+                    a: 32
+                    collect
+                }
+
+                case 32 {
+                    a: "goodbye"
+                    collect
+                }
+            }
+        """)
+
+        a = scope.resolve("a")
+        self.assertEqual(a,  NkString("goodbye"))
 

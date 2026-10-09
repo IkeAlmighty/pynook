@@ -65,12 +65,13 @@ class JumpIfFalse(Instruction):
     target: int | None
 
 @dataclass
-class Collect(Instruction): 
-    value: Constant
+class Collect(Instruction): pass 
 
 @dataclass
-class Return(Instruction):
-    value: Constant
+class Return(Instruction): pass
+
+@dataclass
+class Leave(Instruction): pass
 
 #####################################################
 ############### Binary Op Instructions ##############
