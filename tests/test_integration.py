@@ -283,4 +283,3 @@ class TestIntegration(unittest.TestCase):
 
         a = scope.resolve("a")
         self.assertEqual(a,  NkString("goodbye"))
-

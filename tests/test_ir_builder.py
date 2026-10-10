@@ -51,19 +51,19 @@ class TestIRBuilder(unittest.TestCase):
         ast = Scope(
             Block(
                 [
-                    Statement(),
-                    Statement(),
-                    Statement(),
+                    String("hello", 0, 0),
+                    String("world", 0, 0),
+                    String("!!!!", 0, 0),
                 ]
             ), 0, 0
         )
 
-        #TODO
+        # TODO:
+
 
     def test_visit_Block(self):
-        block = Block([
-            Assignment(
-
+        pass
+        
     def test_visit_Set(self):
         pass
 

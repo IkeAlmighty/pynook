@@ -92,6 +92,14 @@ class VirtualMachine:
             # first, promote any resolvable members in this
             # frame's scope to their owners:
 
+            # TODO: right now, collect only works inside of scopes. 
+            # the original idea was to allow it inside of nested lists and 
+            # nested sets. This can be done by restructuring the parse tree
+            # output and defining lists and sets as scopes with '[' ... ']' 
+            # instead of '{' ... '}'
+
+            # At that point, NkScope.collect_to should also be examined to 
+            # see if it is a better fit here:
             if COLLECT_RESOLVABLE_MEMBERS in definition.control_types:
                 for name in frame.scope.unreserved_members:
                     owner = frame.scope.parent.resolve_owner(name)

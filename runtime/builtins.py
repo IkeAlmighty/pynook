@@ -97,3 +97,34 @@ class BuiltIns:
         else: 
             print(obj.value)
 
+    @staticmethod
+    def nk_open(vm, address, mode):
+        raise NotImplementedError()
+
+    @staticmethod
+    def nk_connect(vm, address):
+        raise NotImplementedError()
+
+    @staticmethod
+    def nk_listen(vm, address):
+        raise NotImplementedError()
+
+    @staticmethod
+    def nk_accept(vm, listener):
+        raise NotImplementedError()
+
+    @staticmethod
+    def nk_read(vm, stream):
+        raise NotImplementedError()
+   
+    @staticmethod
+    def nk_write(vm, stream, value):
+        raise NotImplementedError()
+    
+    @staticmethod
+    def nk_close(vm, stream):
+        raise NotImplementedError()
+
+    @staticmethod
+    def nk_hash(vm, value):
+        raise NotImplementedError()
