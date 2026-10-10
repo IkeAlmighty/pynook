@@ -161,7 +161,7 @@ class VirtualMachine:
         """
         owner = self.stack.pop()
         name = inst.value
-        member = owner.resolve(name)
+        member = owner.resolve_local(name)
 
         self.stack.append(member)
 

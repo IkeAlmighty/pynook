@@ -74,6 +74,12 @@ class NkScope(NkValue):
 
         raise Exception(f"{name} cannot be resolved")
 
+    def resolve_local(self, name):
+        if name in curr.members:
+            return curr.members[name]
+
+        raise Exception(f"{name} is not a member of {self.name}")
+
     def resolve_owner(self, name):
         curr = self
         

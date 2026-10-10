@@ -50,7 +50,23 @@ One quirk of Nook is that `=` is not used for assignment. Instead, `:` is used. 
 You might have noticed that I introduced some primitive types in the example above. Nook has primitives for `string`, `int`, `float`, `boolean`, `binary`, `hexadecimal`, `list`, and `set`. Types are dynamically attached during assignment.
 
 ### Name Resolution.
-Every scope has a parent scope. When a variable name is referenced, resolution climbs from the current scope and up it's parent tree until it finds a matching name. Builtins live in the implicit 'builtins' scope that the runtime creates at the root of the scope tree, and the entry file constitutes the first user defined scope in the tree (a direct child of the builtins scope).
+Every scope has a parent scope. When a variable name is referenced, resolution climbs from the current scope and up it's parent tree until it finds a matching name. Member access does not climb the parent tree and throws an error if the member does not exist. 
+
+Builtins live in the implicit 'builtins' scope that the runtime creates at the root of the scope tree, and the entry file constitutes the first user defined scope in the tree (a direct child of the builtins scope). This user defined scope also defined the "__main__" member, which points to itself.
+
+    a: 5
+    b: {
+        c: {
+            d: a # works! 'a' is found through climbing the scope tree
+        }
+    }
+
+    # throws an exception:
+    b.a  
+    # 'a' is not a member of b. Member access does not climb the scope tree.
+
+    __main__ == __file__ # true, assuming this code exists in the entry file for the program
+
 
 ## Language Constructs
 

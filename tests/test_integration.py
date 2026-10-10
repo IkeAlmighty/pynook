@@ -283,3 +283,16 @@ class TestIntegration(unittest.TestCase):
 
         a = scope.resolve("a")
         self.assertEqual(a,  NkString("goodbye"))
+
+    def test_resolve(self):
+        with self.assertRaises(Exception):
+            scope = self.load_source("""
+                c: 5
+                a: {
+                    b: {}
+                }
+
+                d: a.c
+            """)
+
+
