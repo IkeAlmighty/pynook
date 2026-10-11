@@ -74,7 +74,27 @@ class IRBuilder:
             )
 
         elif isinstance(node, ast.Subscript):
-            raise NotImplementedError()
+            expr = self.dispatch(node.expr)
+            if not node.is_slice:
+                # LoadMember vm implementation decides what to do with 
+                # string vs int in the instruction
+                self.emit(
+                    ir.LoadMember(node.start.value)
+                )
+            else:
+                start = None
+                end = None
+                if node.start:
+                    start = node.start.value
+                if node.end:
+                    end = node.end.value
+
+                self.emit(
+                    ir.LoadSlice(start, end)
+                )
+
+        elif isinstance(node, ast.Call):
+            self.dispatch(node)
 
         else:
             raise Exception(f"Invalid Load target {node}")

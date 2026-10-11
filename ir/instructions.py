@@ -10,7 +10,12 @@ class Load(Instruction):
 
 @dataclass
 class LoadMember(Instruction):
-    value: str
+    value: str | int
+
+@dataclass
+class LoadSlice(Instruction):
+    start: int 
+    end: int
 
 @dataclass
 class Store(Instruction):

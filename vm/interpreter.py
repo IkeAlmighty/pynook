@@ -13,6 +13,7 @@ class VirtualMachine:
         self.ins_lookup = {
             Load: self.Load,
             LoadMember: self.LoadMember,
+            LoadSlice: self.LoadSlice,
             Store: self.Store,
             StoreMember: self.StoreMember,
             PushConst: self.PushConst,
@@ -160,10 +161,36 @@ class VirtualMachine:
         loads the a member of the instruction's value onto the stack.
         """
         owner = self.stack.pop()
-        name = inst.value
-        member = owner.resolve(name)
+        key = inst.value
+        member = None
 
+        if key.isnumeric(): # for integers:
+            if isinstance(owner, NkList):
+                member = owner.items[int(key)]
+            else: 
+                raise Exception(f"{type(owner)} is not indexable")
+
+        else: # for strings and identifiers:
+            if isinstance(owner, NkScope):
+                member = owner.resolve(key)
+            else:
+                raise Exception(f"{type(owner)} is not subscriptable")
+        
         self.stack.append(member)
+
+    def LoadSlice(self, inst):
+        value = self.stack.pop()
+
+        if not isinstance(value, NkList):
+            raise Exception(f"{value} is not a list")
+        
+        start, end = 0, len(value.items)
+        if inst.start: start = int(inst.start)
+        if inst.end: end = int(inst.end)
+
+        items = value.items[start:end]
+
+        self.stack.append(NkList(items))
 
     def JumpIfFalse(self, inst):
         value = self.stack.pop()

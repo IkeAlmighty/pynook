@@ -1,15 +1,6 @@
 
 # test imports!!! :D
 
-#import('tests/fixtures/pass/import_a')
-
 module: import('tests/fixtures/pass/import_a')
-print(module.hello)
-#{ specific_member }: import('tests/fixtures/pass/import_c')
-#
+{ specific_member }: import('tests/fixtures/pass/import_c')
 #..import('tests/fixtures/pass/import_b')
-#c: import('tests/fixtures/pass/import_c')
-#
-#print(c.my_member)
-#print(hello)
-#print(specific_member)

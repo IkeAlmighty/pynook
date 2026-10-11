@@ -283,3 +283,70 @@ class TestIntegration(unittest.TestCase):
 
         a = scope.resolve("a")
         self.assertEqual(a,  NkString("goodbye"))
+
+    def test_empty_scope(self):
+        scope = self.load_source("""
+            a: {}
+        """)
+        pass
+
+    def test_destructure(self):
+        scope = self.load_source("""
+            a: { b: 1 }
+            { b }: a
+        """)
+
+        b = scope.resolve("b")
+        self.assertEqual(b, NkInt(1))
+
+    def test_store_member(self):
+        scope = self.load_source("""
+            a: { b: 3 }
+            a.b: 4
+        """)
+
+        a = scope.resolve("a")
+        b = a.resolve("b")
+        self.assertEqual(b, NkInt(4))
+
+    def test_subscript(self):
+        scope = self.load_source("""
+            a: [0, 2, 3]
+            b: a[1]
+        """)
+
+        b = scope.resolve("b")
+        self.assertEqual(b, NkInt(2))
+
+        scope = self.load_source("""
+            a: { b: "test_b", "e": "test_e" } 
+            c: a["b"]
+            d: a[b]
+            f: a["e"]
+        """)
+
+        c = scope.resolve("c")
+        d = scope.resolve("d")
+        f = scope.resolve("f")
+
+        self.assertEqual(c, NkString("test_b"))
+        self.assertEqual(d, NkString("test_b"))
+        self.assertEqual(f, NkString("test_e"))
+
+
+    def test_slice(self):
+        #TODO: add support for negative number slices
+        scope = self.load_source("""
+            a: [0, 2, 3, 4]
+            b: a[0:2]
+            c: a[:3]
+            d: a[2:]
+        """)
+
+        b = scope.resolve("b")
+        c = scope.resolve("c")
+        d = scope.resolve("d")
+
+        self.assertEqual(b, NkList([NkInt(0), NkInt(2)]))
+        self.assertEqual(c, NkList([NkInt(0), NkInt(2), NkInt(3)]))
+        self.assertEqual(d, NkList([NkInt(3), NkInt(4)]))
