@@ -8,7 +8,8 @@ from runtime.values import NkScope, NkList, NkString
 from runtime.builtins import inject_builtins, BuiltIns
 
 def compile_stdlib():
-    module_name = "./stdlib/core.nk"
+    curr_path = os.path.abspath(__file__)
+    module_name = os.path.join(curr_path, "../stdlib/core.nk")
 
     source = ""
     with open(module_name) as f:

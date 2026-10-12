@@ -2,10 +2,10 @@
 A scope-centric scripting language
 
 ## pynook vs Nook
-Pynook is the first implementation of the nook programming language, and is still experimental. It is written entirely in python and executes a program's abstract syntax tree directly (as opposed to using an IR). 
+Pynook is the first implementation of the nook programming language, and is still experimental. It is written entirely in python and consists of an custom intermediate representation language that is consumed by a custom built virtual machine. 
 
 ## Philosophy
-Nook is scope-centric programming language for distributed systems designed to be simple, easy to learn, and ergonomic. Scopes are first-class citizens in Nook, serving as the foundation for objects, functions, modules, and execution contexts. The language minimizes reserved words, favoring syntax and scope relationships over specialized language constructs. Nook provides powerful reflection and serialization capabilities. Every scope retains its abstract syntax tree (AST), allowing data to be inspected, serialized, hashed, distributed, and re-executed. JSON is a subset of Nook, enabling seamless interoperability between static configuration and executable code. 
+Nook is scope-centric programming language for distributed systems designed to be simple, easy to learn, and ergonomic. Scopes are first-class citizens in Nook, serving as the foundation for objects, functions, modules, and execution contexts. The language minimizes reserved words, favoring syntax and scope relationships over specialized language constructs. Nook provides powerful reflection and serialization capabilities. JSON is a subset of Nook, enabling seamless interoperability between static configuration and executable code. 
 
 Nook's long-term vision is to provide a foundation for distributed infrastructure, rapid iteration, executable knowledge sharing and semantic code search. By treating scopes as portable, addressable, and serializable runtime artifacts, Nook aims to make distributed software systems easier to build, discover, and evolve.
 
@@ -19,7 +19,7 @@ Once that is done, edit shim (nook.ps1):
 
     py "<path/to/nook/repo>/nook.py" @args
 
-The pynook interpreter does not require any python dependencies.
+The pynook interpreter does not require any external python dependencies.
 
 ## Your First Nook Program: Hello World
 
@@ -50,7 +50,7 @@ One quirk of Nook is that `=` is not used for assignment. Instead, `:` is used. 
 You might have noticed that I introduced some primitive types in the example above. Nook has primitives for `string`, `int`, `float`, `boolean`, `binary`, `hexadecimal`, `list`, and `set`. Types are dynamically attached during assignment.
 
 ### Name Resolution.
-Every scope has a parent scope. When a variable name is referenced, resolution climbs from the current scope and up it's parent tree until it finds a matching name. Member access does not climb the parent tree and throws an error if the member does not exist. 
+Every scope has a parent scope. When a variable name is referenced, resolution climbs from the current scope and up it's parent tree until it finds a matching name. Member access does not climb the parent tree and throws an error if the member does not exist. (i.e. `a.b` does not climb the scope tree to look for b, allowing the statement to throw and error when `b` does not exist as a member of `a`).
 
 Builtins live in the implicit 'builtins' scope that the runtime creates at the root of the scope tree, and the entry file constitutes the first user defined scope in the tree (a direct child of the builtins scope). This user defined scope also defined the "__main__" member, which points to itself.
 
@@ -99,7 +99,7 @@ In the runtime, every scope contains members, a name (which can be `none`), and 
 
 ### Subscript
     
-    # subscripts on scope objects are interchangeable with dot notation
+    # subscripts on scope objects are interchangeable with dot notation (javascript-style)
     my_scope["field"] == my_scope.field 
 
     # subscripts on lists and sets take integers, and return the item at the matching index:
@@ -111,13 +111,17 @@ In the runtime, every scope contains members, a name (which can be `none`), and 
         print('hello!')
     }
 
+    elif my_scope.obj == "huh" {
+        print('ah, I see you are confused')
+    }
+
     else {
         print('goodbye, I loved you.')
     }
 
 ### for
 
-    for (i: 0; i < 20; i: i+1) {
+    for i: 0; i < 20; i: i+1 {
         print(i)
     }
 
@@ -180,7 +184,9 @@ Sometimes it is handy to have an easy reference to an important ancestor to a sc
             a: 77
             print(root.a) # prints 55
         }
-    }
+    } 
+
+`root` can be shadowed by other `root` declarations, similar to any other variable.
 
 ### Default Parameter Values
 Default parameter values can be written the same as assignments in Nook:
@@ -251,6 +257,8 @@ There is no `break` keyword in Nook, like other c-like languages. Instead, Nook 
         }
     }
 
+As this example indicates, Nook reevaluates the switch expression per case, allowing cases to cascade on eachother via state mutation.
+
 ## Builtins
 Nook has builtin scopes for file/stream io, AST and JSON serialization, math, and module imports. 
 
@@ -266,6 +274,9 @@ Nook has builtin scopes for file/stream io, AST and JSON serialization, math, an
     # adds matching named func1, func2 from module_a to variables func1, func2 in current scope
     { func1, func2 }: import('module_a') 
 
+    # import can also be used on json files, since json is just a subset of nook:
+    { json_data }: import ('myjsonfile.json')
+
 ### Other builtins
 `stdout`, `stdin`, `stderr`, `open`, `close`, `write`, `execute`, `seek`, `print`
 
@@ -279,7 +290,7 @@ use something more lightweight, use `stdout` instead.
     print(some_scope, indent: 2, depth: 20) # pretty prints with specified indent and depth values.
 
 ## Standard Library
-Nook's standard library is not auto-imported. It contains scopes for networking. 
+Nook's standard library (seperate from the builtins) is entirely written in Nook.
 
 ## Future Development
 
@@ -294,4 +305,4 @@ Nook is still in an experimental phase, but some language-feature plans for the 
     - Static Scope Members via UncalledObj.member or __scope__.shared or root.shared
     - Decentralized AST lookup and sharing/searching via hypervectors in addition to traditional documentation
 
-The long term runtime plan is to bootstrap Nook and target either LLVM or JVM, and a Nook IR + custom virtual machine as well.
+The long term runtime plan is to bootstrap Nook's compilation to the Nook IR, and then rewrite the virtual machine in c.
