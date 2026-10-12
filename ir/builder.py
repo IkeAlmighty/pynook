@@ -74,20 +74,28 @@ class IRBuilder:
             )
 
         elif isinstance(node, ast.Subscript):
-            # if the subscript is a slice, emit
-            # the push slice instruction with start
-            # and end
-
-            # if the subscript is not a slice, then
-            # push the subscript value and then let
-            # the the vm determine based on the value
-            # type what to do:
-            if node.is_slice:
-                raise NotImplementedError()
+            expr = self.dispatch(node.expr)
+            if not node.is_slice:
+                # LoadMember vm implementation decides what to do with 
+                # string vs int in the instruction
+                self.emit(
+                    ir.LoadMember(node.start.value)
+                )
             else:
-                # TODO: figure out what expr, start, and end actually are in the ast 
-                raise NotImplementedError()
-                            
+                start = None
+                end = None
+                if node.start:
+                    start = node.start.value
+                if node.end:
+                    end = node.end.value
+
+                self.emit(
+                    ir.LoadSlice(start, end)
+                )
+
+        elif isinstance(node, ast.Call):
+            self.dispatch(node)
+
         else:
             raise Exception(f"Invalid Load target {node}")
 

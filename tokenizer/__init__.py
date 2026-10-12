@@ -414,7 +414,7 @@ class Tokenizer:
 
         # check for invalid beginning character of next token
         # (to avoid 456ffxx being counted as a number)
-        valid_int_suffix = r'[\]\)\-\+\*\^%/\s;,\}]'
+        valid_int_suffix = r'[\]\)\-\+\*\^%/\s;:,\}]'
         if self.curr_char and not re.match(valid_int_suffix, self.curr_char):
             raise InvalidNumber(f"{value + self.curr_char} is not a valid number {self.row} {self.col}")
 
