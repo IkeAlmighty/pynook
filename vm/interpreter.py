@@ -161,33 +161,37 @@ class VirtualMachine:
         """
         loads the a member of the instruction's value onto the stack.
         """
+        lookup_term = self.stack.pop()
         owner = self.stack.pop()
-        key = inst.value
+
         member = None
 
-        if key.isnumeric(): # for integers:
-            if isinstance(owner, NkList):
-                member = owner.items[int(key)]
-            else: 
-                raise Exception(f"{type(owner)} is not indexable")
+        # for loading list, set items:
+        if isinstance(lookup_term, NkInt):
+            if not isinstance(owner, NkList) and not isinstance(owner, NkSet):
+                raise Exception("integer subsriptions are only valid on sets and lists")
 
-        else: # for strings and identifiers:
-            if isinstance(owner, NkScope):
-                member = owner.resolve_local(key)
-            else:
-                raise Exception(f"{type(owner)} is not subscriptable")
-        
+            member = owner.items[lookup_term.value]
+
+        # for loading scope members:
+        elif isinstance(lookup_term, NkString):
+            if not isinstance(owner, NkScope):
+                raise Exception("string subscriptions are only valid on scopes")
+
+            member = owner.resolve_local(lookup_term.value) 
+                
         self.stack.append(member)
 
     def LoadSlice(self, inst):
+        end = self.stack.pop()
+        start = self.stack.pop()
         value = self.stack.pop()
 
         if not isinstance(value, NkList):
             raise Exception(f"{value} is not a list")
         
-        start, end = 0, len(value.items)
-        if inst.start: start = int(inst.start)
-        if inst.end: end = int(inst.end)
+        start = (start.value if start is not NK_NONE else None)
+        end = (end.value if end is not NK_NONE else None)
 
         items = value.items[start:end]
 

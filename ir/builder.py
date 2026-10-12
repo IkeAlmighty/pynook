@@ -70,35 +70,46 @@ class IRBuilder:
             self.__emit_load(node.target)
 
             self.emit(
-                ir.LoadMember(node.name.value)
+                ir.PushConst(
+                    ir.Constant(type_name="string", value=node.name.value)
+                )
             )
 
+            self.emit(
+                ir.LoadMember()
+            )
+            
         elif isinstance(node, ast.Subscript):
             expr = self.dispatch(node.expr)
-            start = None
-            if node.start:
-                start = node.start.value
 
-            if not node.is_slice:
-                # LoadMember vm implementation decides what to do with 
-                # string vs int in the instruction
-                self.emit(
-                    ir.LoadMember(start)
-                )
-            else:
-                end = None
+            if node.is_slice:
+
+                if node.start:
+                    self.dispatch(node.start)
+                else:
+                    self.emit(
+                        ir.PushConst(ir.Constant(type_name="none", value=None))
+                    )
+
                 if node.end:
-                    end = node.end.value
+                    self.dispatch(node.end)
+                else: 
+                    self.emit(
+                        ir.PushConst(ir.Constant(type_name="none", value=None))
+                    )
 
                 self.emit(
-                    ir.LoadSlice(start, end)
+                    ir.LoadSlice()
                 )
 
-        elif isinstance(node, ast.Call):
-            self.dispatch(node)
+            else:
+                self.__emit_load(node.start)
+                self.emit(
+                    ir.LoadMember()
+                )
 
-        else:
-            raise Exception(f"Invalid Load target {node}")
+        else: # expressions and calls
+            self.dispatch(node)
 
     def __emit_store(self, node):
         if isinstance(node, ast.Identifier):
