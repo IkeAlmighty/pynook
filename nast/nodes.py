@@ -234,11 +234,13 @@ class BinaryNumber(Literal):
 
 @dataclass
 class NullValue(Literal):
+    value: None
     row: int
     col: int
 
 @dataclass
 class NoneValue(Literal):
+    value: None
     row: int
     col: int
 
