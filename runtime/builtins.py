@@ -52,6 +52,11 @@ def inject_builtins(nk_scope):
 
 class BuiltIns:
 
+    stdlib_lookup = {
+        "math.nk": "stdlib/math.nk",
+        "utest.nk": "stdlib/utest.nk"
+    }
+
     @staticmethod
     def nk_import(vm, filepath):
         # normalize the module name
@@ -59,6 +64,10 @@ class BuiltIns:
 
         if not module_name.endswith('.nk') and not module_name.endswith('.json'):
             module_name = module_name + ".nk"
+
+        # allow standard library functions without fullpath:
+        if module_name in BuiltIns.stdlib_lookup:
+            module_name = BuiltIns.stdlib_lookup[module_name]
 
         # open the file:
         source = ""

@@ -3,4 +3,4 @@
 
 module: import('tests/fixtures/pass/import_a')
 { specific_member }: import('tests/fixtures/pass/import_c')
-#..import('tests/fixtures/pass/import_b')
+..import('tests/fixtures/pass/import_b')

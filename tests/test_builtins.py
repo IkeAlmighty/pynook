@@ -54,3 +54,5 @@ class TestBuiltins(unittest.TestCase):
     def test_nkimport(self):
         scope = self.load_fixture('tests/fixtures/pass/test_import.nk')
 
+        pass
+

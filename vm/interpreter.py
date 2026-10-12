@@ -22,6 +22,7 @@ class VirtualMachine:
             CreateArgument: self.CreateArgument,
             CreateList: self.CreateList,
             CreateSet: self.CreateSet,
+            SpreadTerm: self.SpreadTerm,
             Call: self.Call,
             CallBuiltIn: self.CallBuiltIn,
             Collect: self.Collect,

@@ -1,11 +1,10 @@
-
 import unittest
-from runtime.values import NkList
+from runtime.values import NkList, NkFloat
 from nook import run_program
 
 class TestRunProgram(unittest.TestCase):
 
-    def test_run_program(self):
+    def test_args(self):
         scope = run_program("""
             a: 5
             b: {}
@@ -16,4 +15,18 @@ class TestRunProgram(unittest.TestCase):
         
         e = scope.resolve("e")
         self.assertEqual(e, NkList(["arg1", "arg2"]))
+
+    def test_stdlib_compilation(self):
+
+        scope = run_program("""
+            a: "hello!"
+        """)
+
+        pi = scope.resolve("pi")
+
+        self.assertEqual(pi, NkFloat(3.14159))
+        
+
+
+
 
