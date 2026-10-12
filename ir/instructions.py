@@ -46,6 +46,9 @@ class CreateArgument(Instruction):
 class CreateSpreadArgument(Instruction): pass
 
 @dataclass
+class SpreadTerm(Instruction): pass
+
+@dataclass
 class Call(Instruction): pass
 
 @dataclass
