@@ -75,17 +75,18 @@ class IRBuilder:
 
         elif isinstance(node, ast.Subscript):
             expr = self.dispatch(node.expr)
+            start = None
+            if node.start:
+                start = node.start.value
+
             if not node.is_slice:
                 # LoadMember vm implementation decides what to do with 
                 # string vs int in the instruction
                 self.emit(
-                    ir.LoadMember(node.start.value)
+                    ir.LoadMember(start)
                 )
             else:
-                start = None
                 end = None
-                if node.start:
-                    start = node.start.value
                 if node.end:
                     end = node.end.value
 

@@ -172,7 +172,7 @@ class VirtualMachine:
 
         else: # for strings and identifiers:
             if isinstance(owner, NkScope):
-                member = owner.resolve(key)
+                member = owner.resolve_local(key)
             else:
                 raise Exception(f"{type(owner)} is not subscriptable")
         

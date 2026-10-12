@@ -165,8 +165,6 @@ class TestIRBuilder(unittest.TestCase):
         ])
 
         result = self.builder.build(ast)
-        print(result)
-
 
     def test_visit_SpreadArgs(self):
         pass
