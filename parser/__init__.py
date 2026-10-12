@@ -493,10 +493,18 @@ class Parser:
         expr = self._expr()
         scope = self._scope()
 
+        # skip any newlines
+        while self.curr_token.type == TokenTypes.NEWLINE:
+            self._eat(TokenTypes.NEWLINE)
+
         elif_nodes = []
         while self.curr_token.type == TokenTypes.KW_ELIF:
             elif_nodes.append(self._elif())
-        
+
+        # skip any newlines
+        while self.curr_token.type == TokenTypes.NEWLINE:
+            self._eat(TokenTypes.NEWLINE)
+
         else_node = None
         if self.curr_token.type == TokenTypes.KW_ELSE:
             else_node = self._else()
