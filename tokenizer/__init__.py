@@ -298,6 +298,14 @@ class Tokenizer:
 
         if self.curr_char in ('"', "'"):
             return self._scan_string()
+        
+        # test for negative numbers:
+        if self.curr_char == '-' and re.match(r'[0-9]', self._peek(1)):
+            return self._scan_number()
+
+        # non-negative numbers:
+        if re.match(r'[0-9]', self.curr_char):
+            return self._scan_number()
 
         # test for keywords:
         for word in Tokenizer.keywords:
@@ -335,10 +343,6 @@ class Tokenizer:
         if re.match(r'[a-zA-Z_]', self.curr_char):
             return self._scan_identifier()
         
-        if re.match(r'[0-9]', self.curr_char):
-            return self._scan_number()
-        
-        
         raise Exception("Unknown Token")
 
     ###############################################################
@@ -358,7 +362,6 @@ class Tokenizer:
         return Token(TokenTypes.IDENTIFIER, value, row, col)
 
     def _scan_binary(self):
-        #TODO: replace None returns with try..except
         row = self.row
         col = self.col
         self._advance()
@@ -378,7 +381,6 @@ class Tokenizer:
         return Token(TokenTypes.BINARY, value, row, col)
 
     def _scan_hexadecimal(self):
-        #TODO: replace None returns with try..except
         row = self.row
         col = self.col
         self._advance()
@@ -405,6 +407,11 @@ class Tokenizer:
         row = self.row
         col = self.col
         value = ""
+
+        if self.curr_char == '-':
+            value += '-'
+            self._advance()
+
         while self.curr_char and re.match(r'[0-9]', self.curr_char):
             value += self.curr_char
             self._advance()
@@ -437,7 +444,6 @@ class Tokenizer:
 
         return Token(TokenTypes.FLOAT, value, self.row, self.col)
 
-
     def _scan_string(self):
         row = self.row
         col = self.col
@@ -455,8 +461,6 @@ class Tokenizer:
         return Token(TokenTypes.STRING, value, row, col)
          
     def _scan_boolean(self):
-        #TODO: replace None returns with try..except
-
         word = None
         if self.curr_char == 'f': word = str(False).lower()
         elif self.curr_char == 't': word = str(True).lower()
@@ -470,7 +474,6 @@ class Tokenizer:
         return Token(TokenTypes.BOOLEAN, word, self.row, self.col)
 
     def _scan_keyword(self, keyword):
-        #TODO: replace None returns with try..except
         row = self.row
         col = self.col
 
@@ -487,7 +490,6 @@ class Tokenizer:
         return Token(t_type, keyword, row, col)
 
     def _scan_operator(self, op):
-        #TODO: replace None returns with try..except
         row = self.row
         col = self.col
         

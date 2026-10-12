@@ -361,3 +361,15 @@ class TestIntegration(unittest.TestCase):
         self.assertEqual(b, NkList([NkInt(0), NkInt(2)]))
         self.assertEqual(c, NkList([NkInt(0), NkInt(2), NkInt(3)]))
         self.assertEqual(d, NkList([NkInt(3), NkInt(4)]))
+
+    def test_negative_numbers(self):
+        scope = self.load_source("""
+            a: -1
+            b: -35.44
+        """)
+
+        a = scope.resolve("a")
+        b = scope.resolve("b")
+
+        self.assertEqual(a, NkInt(-1))
+        self.assertEqual(b, NkFloat(-35.44))

@@ -157,7 +157,8 @@ class Parser:
         elif self.curr_token.type == TokenTypes.KW_THROW:
             return self._throw()
 
-        else: raise Exception(f"Unhandled token type for beginning of statement {self.curr_token}")
+        else: 
+            raise Exception(f"Unhandled token type for beginning of statement {self.curr_token}")
 
     def _scope(self):
         row = self.curr_token.row
