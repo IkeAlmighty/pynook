@@ -160,7 +160,13 @@ class TestIRBuilder(unittest.TestCase):
         pass
 
     def test_visit_Subscript(self):
-        pass
+        ast = Block([
+            Subscript(Integer(1, 0, 0), None, None, False)
+        ])
+
+        result = self.builder.build(ast)
+        print(result)
+
 
     def test_visit_SpreadArgs(self):
         pass
