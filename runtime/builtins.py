@@ -6,6 +6,28 @@ from ir.definitions import ScopeDefinition
 from ir.instructions import *
 from runtime.values import *
 
+
+def _create_const_instruction(param):
+    type_to_string_lookup = {
+        str: "string",
+        int: "int",
+        bool: "bool", 
+        float: "float",
+        type(None): "none",
+    }
+
+    default_type = type(param.default)
+    if default_type not in type_to_string_lookup:
+        raise Exception(f"python type {default_type} is not supported for default parameter values")
+
+    type_name = type_to_string_lookup[default_type]
+
+    return Constant(
+        type_name=type_name, 
+        value=param.default
+    )
+
+
 def inject_builtins(nk_scope):
     builtins = [
         (name[3:], fn)
@@ -15,27 +37,38 @@ def inject_builtins(nk_scope):
 
     for name, function in builtins:
 
-        # TODO: add support for default parameters in builtins
-
         parameter_definition = ScopeDefinition()
         sig = inspect.signature(function)
         parameter_names = []
-        for parameter in sig.parameters.values():
-            if parameter.name == "vm": continue
+
+        for param_name, param in sig.parameters.items():
+            if param_name == "vm": continue
+
+            default_value_instruction = Constant(
+                type_name="unbound",
+                value=None
+            )
+
+            # replace the ir.Constant value with appropriate
+            # value if there is a default value for the parameter:
+            if param.default  is not inspect.Parameter.empty:
+                default_value_instruction = _create_const_instruction(param)
+
+            # create parameter definition:
             parameter_definition.instructions.append(
                 PushConst(
-                    Constant(
-                        type_name="unbound",
-                        value=None
-                    )
+                    default_value_instruction    
                 )
             )
 
             parameter_definition.instructions.append(
-                Store(parameter.name)
+                Store(param_name)
             )
+            ###################################
 
-            parameter_names.append(parameter.name)
+            # save parameter names so that CallBuiltIn can
+            # be called correctly:
+            parameter_names.append(param_name)
 
         body_definition = ScopeDefinition()
 
@@ -43,6 +76,7 @@ def inject_builtins(nk_scope):
             CallBuiltIn(function, parameter_names)
         )
         
+        # finally, inject the builtin deferred scope:
         nk_scope.members[name] = NkScope(
             parent=nk_scope,
             body_definition=body_definition,
@@ -121,6 +155,7 @@ class BuiltIns:
     @staticmethod
     def nk_accept(vm, listener):
         raise NotImplementedError()
+
 
     @staticmethod
     def nk_read(vm, stream):
