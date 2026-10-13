@@ -36,7 +36,7 @@ The pynook interpreter should print `"hello world"` on screen.
 ## Overview of Nook
 
 ### Scopes are Objects, Objects are Scopes
-Nook is a *scope based* language. Scopes are objects, and objects are scopes. When you ran `hello.nk`, a 'main' scope was created, and then a *file* scope was created with the main scope as its parent. The file scope is where you wrote `print(...)`. These respective scopes can be accessed through the __file__ and __main__ keywords.
+Nook is a *scope based* language. Scopes are objects, and objects are scopes. When you ran `hello.nk`, a builtins scope was created, and then a *file* scope was created with the builtins scope as its parent. The file scope is where you wrote `print(...)`. `__main__` is a member of the entry file scope, and points to itself. `__file__` is a member of each file scope, and points to the scope representing the file it is a part of.
 
 Scopes can also be created with JSON syntax. JSON is actually a subset of the Nook language:
 
@@ -50,7 +50,7 @@ One quirk of Nook is that `=` is not used for assignment. Instead, `:` is used. 
 You might have noticed that I introduced some primitive types in the example above. Nook has primitives for `string`, `int`, `float`, `boolean`, `binary`, `hexadecimal`, `list`, and `set`. Types are dynamically attached during assignment.
 
 ### Name Resolution.
-Every scope has a parent scope. When a variable name is referenced, resolution climbs from the current scope and up it's parent tree until it finds a matching name. Member access does not climb the parent tree and throws an error if the member does not exist. (i.e. `a.b` does not climb the scope tree to look for b, allowing the statement to throw and error when `b` does not exist as a member of `a`).
+Every scope has a parent scope (except for the root scope, where builtins live). When a variable name is referenced, resolution climbs from the current scope and up its parent tree until it finds a matching name. Member access does with `.` notation does _not_ climb the parent tree and throws an error if the member does not exist. (i.e. `a.b` does not climb the scope tree to look for b, allowing the statement to throw and error when `b` does not exist as a member of `a`).
 
 Builtins live in the implicit 'builtins' scope that the runtime creates at the root of the scope tree, and the entry file constitutes the first user defined scope in the tree (a direct child of the builtins scope). This user defined scope also defined the "__main__" member, which points to itself.
 
@@ -79,8 +79,8 @@ In the runtime, every scope contains members, a name (which can be `none`), and 
     my_float: 55.32
     my_int: 56
     my_boolean: false # or true
-    my_binary: b1001110
-    my_hexadecimal: 5566ffdde
+    my_binary: bx1001110
+    my_hexadecimal: hx5566ffdde
     my_list: [1, 2, "hello", true]
     my_set: set[1, 2, "hello", "hello"] # will only contain one "hello" after assignment
 
@@ -116,7 +116,7 @@ In the runtime, every scope contains members, a name (which can be `none`), and 
     }
 
     else {
-        print('goodbye, I loved you.')
+        print('goodbye, my old friend.')
     }
 
 ### for
@@ -162,8 +162,9 @@ In the runtime, every scope contains members, a name (which can be `none`), and 
 
 ### Deferred Scopes (Functions)
 
-A deferred scope is a scope whose body has not been executed. When deferred scopes are executed, they create a copy of themselves for the execution, leaving the original state of the deferred scope untouched.  
+A deferred scope is a scope whose body has not been executed. When deferred scopes _are_ executed, they create a copy of themselves for the execution, leaving the original state of the deferred scope untouched.  
 
+    # deferred scope:
     my_function: (param1, param2) {
         print(param1, param2)
     }
@@ -186,7 +187,7 @@ Sometimes it is handy to have an easy reference to an important ancestor to a sc
         }
     } 
 
-`root` can be shadowed by other `root` declarations, similar to any other variable.
+`root` can be shadowed by other `root` declarations, similar to any other variable, however root can only be declared as a parameter to a deferred scope.
 
 ### Default Parameter Values
 Default parameter values can be written the same as assignments in Nook:
@@ -278,16 +279,7 @@ Nook has builtin scopes for file/stream io, AST and JSON serialization, math, an
     { json_data }: import ('myjsonfile.json')
 
 ### Other builtins
-`stdout`, `stdin`, `stderr`, `open`, `close`, `write`, `execute`, `seek`, `print`
-
-### `print` builtin
-Nook's print function is smarter than many other c-like language `print`s. `print` can be used to 
-pretty print scopes, lists, and sets, as well as simply print text to screen. When you want to 
-use something more lightweight, use `stdout` instead.
-
-    print(json(some_scope)) # pretty prints with default indentation and depth levels
-    print(some_scope) # works exactly the same, as print knows how to convert scopes to json strings.
-    print(some_scope, indent: 2, depth: 20) # pretty prints with specified indent and depth values.
+`stdout`, `stdin`, `stderr`, `open`, `close`, `write`, `read`, `execute`, `seek`, `ast`
 
 ## Standard Library
 Nook's standard library (seperate from the builtins) is entirely written in Nook.
@@ -297,12 +289,15 @@ Nook's standard library (seperate from the builtins) is entirely written in Nook
 Nook is still in an experimental phase, but some language-feature plans for the future include:
 
     - File/Stream IO builtins
-    - json builtins
+    - `execute` builtin for spawning processes
+    - json standard library functions
     - async..await
     - `net` primitives focused on peer to peer networking
     - Scope AST Hashes as Addresses for remote functions
     - AST serialization (utilizing Scope Addresses)
     - Static Scope Members via UncalledObj.member or __scope__.shared or root.shared
     - Decentralized AST lookup and sharing/searching via hypervectors in addition to traditional documentation
+    - ffi for SDL
+    - ffi for Android Development
 
 The long term runtime plan is to bootstrap Nook's compilation to the Nook IR, and then rewrite the virtual machine in c.
