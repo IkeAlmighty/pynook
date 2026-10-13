@@ -1,4 +1,7 @@
 import inspect
+import socket
+import hashlib
+
 from tokenizer import Tokenizer
 from parser import Parser
 from ir.builder import IRBuilder
@@ -13,7 +16,7 @@ def _create_const_instruction(param):
         int: "int",
         bool: "bool", 
         float: "float",
-        type(None): "none",
+        type(NK_NONE): "none",
     }
 
     default_type = type(param.default)
@@ -141,34 +144,79 @@ class BuiltIns:
             print(obj.value)
 
     @staticmethod
-    def nk_open(vm, address, mode):
-        raise NotImplementedError()
+    def nk_open(vm, address, mode="r"):
+        return NkStream(
+            kind="file", 
+            handle=open(address.value, mode.value)
+        )
 
     @staticmethod
     def nk_connect(vm, address):
-        raise NotImplementedError()
+        host, port = address.value.split(":")
+        s = socket.socket()
+        s.connect((host, int(port)))
+
+        return NkStream(
+            kind="socket",
+            handle=s
+        )
 
     @staticmethod
     def nk_listen(vm, address):
-        raise NotImplementedError()
+        host, port = address.value.split(":")
+        s = socket.socket()
+
+        s.bind((host, int(port)))
+        s.listen()
+
+        return NkStream(
+            kind="listenter",
+            handle=s
+        )
 
     @staticmethod
     def nk_accept(vm, listener):
-        raise NotImplementedError()
+        conn, _ = listener.handle.accept()
 
+        return NkStream(
+            kind="socket",
+            handle=conn
+        )
 
     @staticmethod
     def nk_read(vm, stream):
-        raise NotImplementedError()
+        if stream.kind == "file":
+            return NkString(stream.handle.read())
+        
+        if stream.kind == "socket":
+            return NkString(
+                stream.handle.recv(4096).decode()
+            )
+
+        raise Exception(f"cannot read from {stream.kind}")
    
     @staticmethod
     def nk_write(vm, stream, value):
-        raise NotImplementedError()
-    
+        if stream.kind == "file": 
+            stream.handl.write(str(value.value))
+
+            return
+        
+        if stream.kind == "socket":
+            stream.handle.send(str(value.value).encode())
+
+            return
+
+        raise Exception(f"cannot write to {stream.kind}")
+
     @staticmethod
     def nk_close(vm, stream):
-        raise NotImplementedError()
+        stream.handle.close()
 
     @staticmethod
     def nk_hash(vm, value):
-        raise NotImplementedError()
+        data= repr(value).encode()
+
+        return NkString(
+            hashlib.sha256(data).hexdigest()
+        )

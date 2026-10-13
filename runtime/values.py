@@ -232,7 +232,6 @@ class NkScope(NkValue):
 
             else: #NkScope:
                 obj.assign(name, value)
-
             
         
 class NkSet(NkValue):
@@ -295,6 +294,12 @@ class NkList(NkValue):
             else: #NkScope:
                 if isinstance(item, NkScope):
                     obj.assign(item.name, item)
+
+class NkStream(NkValue):
+
+    def __init__(self, kind, handle):
+        self.kind = kind
+        self.handle = handle
 
 class NkBool(NkValue):
 

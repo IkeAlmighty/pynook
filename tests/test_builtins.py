@@ -46,6 +46,9 @@ class TestBuiltins(unittest.TestCase):
             source = f.read()
             return self.load_source(source)
 
+##########################################################################
+
+
     def test_load_source(self):
         scope = self.load_source("a: 5")
 
@@ -54,5 +57,18 @@ class TestBuiltins(unittest.TestCase):
     def test_nkimport(self):
         scope = self.load_fixture('tests/fixtures/pass/test_import.nk')
 
-        pass
+        module = scope.resolve_local("module")
+        hello = module.resolve_local("hello")
+        self.assertEqual(hello, NkString("hello from import_a.nk!!"))
 
+    def test_nkopen(self):
+        scope = self.load_source("""
+            a: open('tests/fixtures/pass/import_b.nk')
+            b: read(a)
+        """)
+
+        a = scope.resolve("a")
+        b = scope.resolve("b")
+        
+        self.assertEqual(type(a), NkStream)
+        self.assertEqual(b, NkString('b: "hello!"\n'))
