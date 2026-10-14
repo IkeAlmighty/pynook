@@ -19,8 +19,7 @@ class Store(Instruction):
     name: str
 
 @dataclass
-class StoreMember(Instruction):
-    name: str
+class StoreMember(Instruction): pass
 
 @dataclass
 class PushConst(Instruction):

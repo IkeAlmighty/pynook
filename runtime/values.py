@@ -2,6 +2,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum, auto
 
+import ir.instructions as ir
+
 class NkValue: 
 
     def add(self, rhs):
@@ -26,7 +28,8 @@ class NkScope(NkValue):
         body_definition=None, 
         parameter_definition=None, 
         name=None, 
-        is_file_scope=False, 
+        is_file_scope=False,
+        is_builtin=False
     ):
         self.parent = parent
         self.members = {}
@@ -34,10 +37,8 @@ class NkScope(NkValue):
         self.body_definition = body_definition
         self.name = name
         self.aliases = set()
-
-        self.return_value = NK_NONE
-
         self.is_file_scope = is_file_scope
+        self.is_builtin = is_builtin
 
         self.__initialize_default_members()
 
@@ -117,7 +118,7 @@ class NkScope(NkValue):
         # run the parameter definition:
         vm.execute(
             new_scope,
-            self.parameter_definition
+            new_scope.parameter_definition
         )
 
         parameters = new_scope.unreserved_members
@@ -134,10 +135,23 @@ class NkScope(NkValue):
             if value is NK_UNBOUND:
                 raise Exception(f"name {name} is unbound for scope call {new_scope.name}")
 
+        # the end of a body definition should include a push of NK_NONE to the stack,
+        # as a default return value. Return Instructions will short circuit this by 
+        # moving the instruction pointer past the end of the body_definition instructions:
+        if not self.is_builtin:
+            new_scope.body_definition.instructions.append(
+                ir.PushConst(
+                    ir.Constant(
+                        type_name="none",
+                        value=None
+                    )
+                )
+            )
+
         # execute on the vm:
         vm.execute(
             new_scope,
-            self.body_definition
+            new_scope.body_definition
         )
 
     def __gather_argument_bindings(self, arguments, parameters):

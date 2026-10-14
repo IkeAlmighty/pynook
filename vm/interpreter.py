@@ -138,7 +138,7 @@ class VirtualMachine:
         self.frame.scope.assign(inst.name, value)
 
     def StoreMember(self, inst):
-        name = inst.name
+        key = self.stack.pop()
         owner = self.stack.pop()
         value = self.stack.pop()
 
@@ -149,7 +149,16 @@ class VirtualMachine:
 
             value.aliases.add(inst.name)
         
-        owner.assign(name, value)
+        if isinstance(key, NkString):
+            owner.assign(key.value, value)
+
+        elif isinstance(key, NkInt):
+
+            if isinstance(owner, NkList): 
+                owner.items[key] = value
+
+            else:
+                raise Exception(f"cannot index {type(owner)}")
 
     def Load(self, inst):
         """
@@ -162,40 +171,35 @@ class VirtualMachine:
         """
         loads the a member of the instruction's value onto the stack.
         """
-        lookup_term = self.stack.pop()
+        key = self.stack.pop()
         owner = self.stack.pop()
 
         member = None
 
         # for loading list, set items:
-        if isinstance(lookup_term, NkInt):
+        if isinstance(key, NkInt):
             if not isinstance(owner, NkList) and not isinstance(owner, NkSet):
                 raise Exception("integer subsriptions are only valid on sets and lists")
 
-            member = owner.items[lookup_term.value]
+            member = owner.items[key.value]
             self.stack.append(member)
 
         # for loading scope members:
-        elif isinstance(lookup_term, NkString):
+        elif isinstance(key, NkString):
             if not isinstance(owner, NkScope):
                 raise Exception("string subscriptions are only valid on scopes")
 
-            def resolve(name):
-                member = owner.resolve_local(name.value)
+            if "__access__" in owner.members:
+                # call __access__ method:
+                overload = owner.resolve_local("__access__")
+
+                if isinstance(overload, NkScope):
+                    arg_key = NkArgument(key, bind_to=NK_UNBOUND)
+                    overload.call(self, NkList([arg_key]))
+
+            else: 
+                member = owner.resolve_local(key.value)
                 self.stack.append(member)
-
-            nk_resolve = create_builtin("resolve", resolve, owner)
-
-            #if "__access__" in owner.members:
-            #    # call __access__ method with resolve function:
-            #    overload = owner["__access__"]
-            #    if isinstance(overload, NkScope):
-            #        overload.call(self, NkList([lookup_term, nk_resolve]))
-            #        if isinstance(self.frame.completion, NormalCompletion):
-            #            self.PushConst(Constant(type
-            #        return
-
-            resolve(lookup_term)
 
     def LoadSlice(self, inst):
         end = self.stack.pop()
@@ -287,8 +291,10 @@ class VirtualMachine:
         arguments = []
         for name in arg_names:
             arguments.append(self.frame.scope.resolve(name))
-        
+
         result = function(self, *arguments)
+
+        # push the correct return value onto the stack:
         self.stack.append(result)
 
     def CreateArgument(self, inst):

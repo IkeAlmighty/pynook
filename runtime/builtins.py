@@ -9,7 +9,6 @@ from ir.definitions import ScopeDefinition
 from ir.instructions import *
 from runtime.values import *
 
-
 def _create_const_instruction(param):
     type_to_string_lookup = {
         str: "string",
@@ -74,15 +73,21 @@ def create_builtin(name, function, parent):
         parent=parent,
         body_definition=body_definition,
         parameter_definition=parameter_definition,
-        name=name
+        name=name, 
+        is_builtin=True
     )
     
-def inject_builtins(nk_scope):
+def get_builtins():
     builtins = [
         (name[len("nk_"):], fn)
         for name, fn in inspect.getmembers(BuiltIns)
         if name.startswith("nk_")
     ]
+
+    return builtins
+
+def inject_builtins(nk_scope):
+    builtins = get_builtins()    
 
     for name, function in builtins:
         # create the builtin definitions:

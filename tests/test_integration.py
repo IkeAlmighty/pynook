@@ -373,3 +373,15 @@ class TestIntegration(unittest.TestCase):
 
         self.assertEqual(a, NkInt(-1))
         self.assertEqual(b, NkFloat(-35.44))
+
+    def test_deferred_function(self):
+        scope = self.load_source("""
+            a: () {
+                b: 1
+            }
+
+            c: a()
+        """)
+
+        c = scope.resolve("c")
+        self.assertEqual(c, NK_NONE)

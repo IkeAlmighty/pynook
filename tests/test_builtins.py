@@ -6,7 +6,7 @@ from parser import Parser
 from runtime.values import *
 from runtime.builtins import inject_builtins
 
-class TestBuiltins(unittest.TestCase):
+class TestBuiltIns(unittest.TestCase):
 
     def setUp(self): pass
 
@@ -76,8 +76,15 @@ class TestBuiltins(unittest.TestCase):
     def test_overload_access(self):
         scope = self.load_source("""
             a: {
-                __access__: (name, resolve) { 
-                    return "hello!"
+                __access__: (name) { 
+                    return "hi!"
                 }
             }
+
+            c: a.f
         """)
+
+        a = scope.resolve_local("a")
+        c = scope.resolve_local("c")
+
+        self.assertEqual(c, NkString("hi!"))

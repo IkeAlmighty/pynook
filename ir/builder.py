@@ -121,12 +121,33 @@ class IRBuilder:
             self.__emit_load(node.target)
 
             self.emit(
-                ir.StoreMember(node.name.value)
+                ir.PushConst(
+                    ir.Constant(
+                        type_name="string",
+                        value=node.name.value
+                    )
+                )
+            )
+
+            self.emit(
+                ir.StoreMember()
             )
 
         elif isinstance(node, ast.Subscript):
-            raise NotImplementedError()
+            if node.is_slice:
+                raise NotImplementedError()
+            else:
+                # owner on the stack:
+                self.__emit_load(node.expr)
 
+                # key on the stack:
+                self.dispatch(node.start)
+
+                # emit StoreMember:
+                self.emit(
+                    ir.StoreMember()
+                )
+                
         else: 
             raise Exception(f"Invalid Store target {node}")
 
