@@ -72,3 +72,12 @@ class TestBuiltins(unittest.TestCase):
         
         self.assertEqual(type(a), NkStream)
         self.assertEqual(b, NkString('b: "hello!"\n'))
+
+    def test_overload_access(self):
+        scope = self.load_source("""
+            a: {
+                __access__: (name, resolve) { 
+                    return "hello!"
+                }
+            }
+        """)

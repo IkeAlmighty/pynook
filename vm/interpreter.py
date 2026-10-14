@@ -1,7 +1,8 @@
 from __future__ import annotations
 from ir.instructions import *
 from runtime.values import *
-from ir.builder import RETURN_DEST, LEAVE_DEST, CONTINUE_DEST, COLLECT_DEST, COLLECT_RESOLVABLE_MEMBERS 
+from runtime.builtins import create_builtin
+from ir.builder import RETURN_DEST, LEAVE_DEST, CONTINUE_DEST, COLLECT_DEST, COLLECT_RESOLVABLE_MEMBERS
 
 class VirtualMachine:
 
@@ -172,15 +173,29 @@ class VirtualMachine:
                 raise Exception("integer subsriptions are only valid on sets and lists")
 
             member = owner.items[lookup_term.value]
+            self.stack.append(member)
 
         # for loading scope members:
         elif isinstance(lookup_term, NkString):
             if not isinstance(owner, NkScope):
                 raise Exception("string subscriptions are only valid on scopes")
 
-            member = owner.resolve_local(lookup_term.value) 
-                
-        self.stack.append(member)
+            def resolve(name):
+                member = owner.resolve_local(name.value)
+                self.stack.append(member)
+
+            nk_resolve = create_builtin("resolve", resolve, owner)
+
+            #if "__access__" in owner.members:
+            #    # call __access__ method with resolve function:
+            #    overload = owner["__access__"]
+            #    if isinstance(overload, NkScope):
+            #        overload.call(self, NkList([lookup_term, nk_resolve]))
+            #        if isinstance(self.frame.completion, NormalCompletion):
+            #            self.PushConst(Constant(type
+            #        return
+
+            resolve(lookup_term)
 
     def LoadSlice(self, inst):
         end = self.stack.pop()
@@ -192,7 +207,6 @@ class VirtualMachine:
         
         start = (start.value if start is not NK_NONE else None)
         end = (end.value if end is not NK_NONE else None)
-
         items = value.items[start:end]
 
         self.stack.append(NkList(items))

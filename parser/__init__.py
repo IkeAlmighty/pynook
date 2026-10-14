@@ -53,6 +53,10 @@ class Parser:
         self.tokenizer = snapshot.tokenizer 
         self.curr_token = snapshot.curr_token
 
+    def _skip_newlines(self):
+        while self.curr_token.type == TokenTypes.NEWLINE:
+            self._eat(TokenTypes.NEWLINE)
+
 ################################################################################
 
     def file(self):
@@ -75,9 +79,8 @@ class Parser:
             ):
                 self._eat(self.curr_token.type)
 
-            while self.curr_token.type == TokenTypes.NEWLINE:
-                self._eat(self.curr_token.type)
-
+            self._skip_newlines()
+            
         return Nodes.Block(statements)
 
     def _assignment_or_expr(self):

@@ -30,63 +30,67 @@ def _create_const_instruction(param):
         value=param.default
     )
 
+def create_builtin(name, function, parent):
+    parameter_definition = ScopeDefinition()
+    sig = inspect.signature(function)
+    parameter_names = []
 
+    for param_name, param in sig.parameters.items():
+        if param_name == "vm": continue
+
+        default_value_instruction = Constant(
+            type_name="unbound",
+            value=None
+        )
+
+        # replace the ir.Constant value with appropriate
+        # value if there is a default value for the parameter:
+        if param.default  is not inspect.Parameter.empty:
+            default_value_instruction = _create_const_instruction(param)
+
+        # create parameter definition:
+        parameter_definition.instructions.append(
+            PushConst(
+                default_value_instruction    
+            )
+        )
+
+        parameter_definition.instructions.append(
+            Store(param_name)
+        )
+        ###################################
+
+        # save parameter names so that CallBuiltIn can
+        # be called correctly:
+        parameter_names.append(param_name)
+
+    body_definition = ScopeDefinition()
+
+    body_definition.instructions.append(
+        CallBuiltIn(function, parameter_names)
+    )
+
+    return NkScope(
+        parent=parent,
+        body_definition=body_definition,
+        parameter_definition=parameter_definition,
+        name=name
+    )
+    
 def inject_builtins(nk_scope):
     builtins = [
-        (name[3:], fn)
+        (name[len("nk_"):], fn)
         for name, fn in inspect.getmembers(BuiltIns)
         if name.startswith("nk_")
     ]
 
     for name, function in builtins:
+        # create the builtin definitions:
+        builtin = create_builtin(name, function, nk_scope)
 
-        parameter_definition = ScopeDefinition()
-        sig = inspect.signature(function)
-        parameter_names = []
-
-        for param_name, param in sig.parameters.items():
-            if param_name == "vm": continue
-
-            default_value_instruction = Constant(
-                type_name="unbound",
-                value=None
-            )
-
-            # replace the ir.Constant value with appropriate
-            # value if there is a default value for the parameter:
-            if param.default  is not inspect.Parameter.empty:
-                default_value_instruction = _create_const_instruction(param)
-
-            # create parameter definition:
-            parameter_definition.instructions.append(
-                PushConst(
-                    default_value_instruction    
-                )
-            )
-
-            parameter_definition.instructions.append(
-                Store(param_name)
-            )
-            ###################################
-
-            # save parameter names so that CallBuiltIn can
-            # be called correctly:
-            parameter_names.append(param_name)
-
-        body_definition = ScopeDefinition()
-
-        body_definition.instructions.append(
-            CallBuiltIn(function, parameter_names)
-        )
-        
         # finally, inject the builtin deferred scope:
-        nk_scope.members[name] = NkScope(
-            parent=nk_scope,
-            body_definition=body_definition,
-            parameter_definition=parameter_definition,
-            name=name
-        )
-
+        nk_scope.members[name] = builtin
+        
 class BuiltIns:
 
     stdlib_lookup = {
