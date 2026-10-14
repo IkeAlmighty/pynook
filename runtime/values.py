@@ -84,7 +84,9 @@ class NkScope(NkValue):
         if name in self.members:
             return self.members[name]
 
-        raise Exception(f"{name} is not a member of {self.name}")
+        # TODO: once Exception System is fleshed out, there should
+        # probably be an Exception here (using none for __access__ overload):
+        return NK_NONE
 
     def resolve_owner(self, name):
         curr = self

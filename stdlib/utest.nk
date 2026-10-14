@@ -4,19 +4,19 @@ Mock: (root) {
 
 	return_value: null
 	
-	__access__: (member, resolve) {
+	__access__: (member) {
 		if member != "return_value" { return Mock() }
-		else { resolve(member) }
+		else { return return_value }
 	}
 }
 
 patch: (parent, member_patch_name) {
-	parent.__access__: (member_access_name, resolve) {
+	parent.__access__: (member_access_name) {
 		if member_access_name == member_patch_name {
 			return Mock()
 		}
 		else {
-			resolve(member_access_name)
+			return parent[member_access_name]
 		}
 	}
 }

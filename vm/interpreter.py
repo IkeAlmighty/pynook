@@ -189,18 +189,21 @@ class VirtualMachine:
             if not isinstance(owner, NkScope):
                 raise Exception("string subscriptions are only valid on scopes")
 
-            if "__access__" in owner.members:
+            member = owner.resolve_local(key.value)
+
+            if member is not NK_NONE:
+                self.stack.append(member)
+
+            elif "__access__" in owner.members:
                 # call __access__ method:
                 overload = owner.resolve_local("__access__")
 
                 if isinstance(overload, NkScope):
                     arg_key = NkArgument(key, bind_to=NK_UNBOUND)
                     overload.call(self, NkList([arg_key]))
-
             else: 
-                member = owner.resolve_local(key.value)
-                self.stack.append(member)
-
+                raise Exception(f"{owner.name} has no member {key.value}")
+                
     def LoadSlice(self, inst):
         end = self.stack.pop()
         start = self.stack.pop()

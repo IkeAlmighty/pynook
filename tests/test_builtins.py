@@ -76,15 +76,19 @@ class TestBuiltIns(unittest.TestCase):
     def test_overload_access(self):
         scope = self.load_source("""
             a: {
+                e: 5
                 __access__: (name) { 
                     return "hi!"
                 }
             }
 
             c: a.f
+            d: a.e
         """)
 
         a = scope.resolve_local("a")
         c = scope.resolve_local("c")
+        d = a.resolve_local("e")
 
         self.assertEqual(c, NkString("hi!"))
+        self.assertEqual(d, NkInt(5))
