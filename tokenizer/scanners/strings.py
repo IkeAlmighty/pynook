@@ -1,8 +1,6 @@
 from tokenizer.tokens import Token, TokenTypes
 
 def scan_string(tokenizer):
-    row = tokenizer.state.row
-    col = tokenizer.state.col
     ending = tokenizer.state.curr_char
     value = ''
     tokenizer.state.advance()
@@ -14,5 +12,5 @@ def scan_string(tokenizer):
 
     tokenizer.state.advance()
 
-    return Token(TokenTypes.STRING, value, row, col)
+    return Token(TokenTypes.STRING, value, tokenizer.state.location)
 

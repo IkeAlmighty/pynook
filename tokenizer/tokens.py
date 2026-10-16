@@ -2,17 +2,13 @@ from enum import Enum, auto
 
 class Token:
 
-    def __init__(self, type, value, row, col):
+    def __init__(self, type, value, location):
         self.type = type
         self.value = value
-        self.row = row
-        self.col = col
-
-    def __str__(self):
-        return f"{self.type} {self.value} ({self.row}:{self.col})"
+        self.location = location
 
     def __repr__(self):
-        return self.__str__()
+        return f"{self.type} {self.value} ({self.location})"
 
 class TokenTypes(Enum):
     IDENTIFIER = auto()

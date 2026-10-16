@@ -17,67 +17,56 @@ class Block(Node):
 @dataclass
 class Scope(Literal):
     block: Block
-    row: int
-    col: int
+    location: Location
 
 @dataclass
 class List(Literal):
     items: list[ Expr ]
-    row: int
-    col: int
+    location: Location
 
 @dataclass
 class Set(Literal):
     items: list[ Expr ]
-    row: int
-    col: int
+    location: Location
 
 @dataclass
 class Leave(Statement):
-    row: int
-    col: int
+    location: Location
 
 @dataclass
 class Continue(Statement):
-    row: int
-    col: int
+    location: Location
 
 @dataclass
 class Collect(Statement):
     child: Expr | Assignment | None
-    row: int
-    col: int
+    location: Location
 
 @dataclass
 class Return(Statement):
     child: Expr | Assignment | None
-    row: int
-    col: int
+    location: Location
 
 @dataclass
 class Ignore(Statement):
     child: Expr | Assignment
-    row: int
-    col: int
+    location: Location
 
 @dataclass
 class Identifier(Expr):
     value: str
-    row: int
-    col: int
+    location: Location
 
 @dataclass
 class Catch(Node):
     identifier: Identifier
     scope: Scope
-    row: int
-    col: int
+    location: Location
 
 @dataclass
 class Throw(Statement):
     expr: Expr
-    row: int
-    col: int
+    location: Location
 
 @dataclass
 class TryCatch(Statement):
@@ -129,16 +118,14 @@ class For(Statement):
     condition: Expr
     update: Statement
     scope: Scope
-    row: int
-    col: int
+    location: Location
 
 @dataclass
 class ForIn(Statement):
     identifier: Identifier
     enumerated: Expr
     scope: Scope
-    row: int
-    col: int
+    location: Location
 
 @dataclass
 class If(Statement):
@@ -199,48 +186,40 @@ class SpreadArgument(Node):
 @dataclass
 class Integer(Literal):
     value: str 
-    row: int
-    col: int
+    location: Location
 
 @dataclass
 class Float(Literal):
     value: str
-    row: int
-    col: int
+    location: Location
 
 @dataclass
 class String(Literal):
     value: str
-    row: int
-    col: int
+    location: Location
 
 @dataclass
 class Boolean(Literal):
     value: str
-    row: int
-    col: int
+    location: Location
 
 @dataclass
 class Hexadecimal(Literal):
     value: str
-    row: int
-    col: int
+    location: Location
 
 @dataclass
 class BinaryNumber(Literal):
     value: str
-    row: int
-    col: int
+    location: Location
 
 @dataclass
 class NullValue(Literal):
     value: None
-    row: int
-    col: int
+    location: Location
 
 @dataclass
 class NoneValue(Literal):
     value: None
-    row: int
-    col: int
+    location: Location
 

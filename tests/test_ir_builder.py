@@ -1,10 +1,12 @@
-
 import unittest
 from pprint import pprint
 from ir.builder import IRBuilder
 from ir.instructions import *
 from ir.serializer import IRSerializer
 from nast.nodes import *
+from debug.location import Location
+
+l = Location(pos=0, row=0, col=0, file=None) 
 
 class TestIRBuilder(unittest.TestCase):
 
@@ -13,7 +15,7 @@ class TestIRBuilder(unittest.TestCase):
 
     def test___emit_load(self):
         # test on single identifier node
-        ast = Identifier("test", 0, 0)
+        ast = Identifier("test", l)
         definition = self.builder.build(ast)
         self.assertEqual(definition.instructions, [ Load("test") ])
 
@@ -21,8 +23,8 @@ class TestIRBuilder(unittest.TestCase):
         # test on a member chain:
         self.builder = IRBuilder()
         ast = Member(
-            target=Identifier("test", 0, 0),
-            name=Identifier("member_test", 0, 0)
+            target=Identifier("test", l),
+            name=Identifier("member_test", l)
         )
 
         definition = self.builder.build(ast)
@@ -32,10 +34,10 @@ class TestIRBuilder(unittest.TestCase):
         # test on single identifier node
         ast = Assignment(
             target=Member(
-                target=Identifier("member_name", 0, 0),
-                name=Identifier("owner_name", 0, 0)
+                target=Identifier("member_name", l),
+                name=Identifier("owner_name", l)
             ),
-            value=Identifier("test_value", 0, 0)
+            value=Identifier("test_value", l)
         )
 
         definition = self.builder.build(ast)
@@ -45,11 +47,11 @@ class TestIRBuilder(unittest.TestCase):
         ast = Scope(
             Block(
                 [
-                    String("hello", 0, 0),
-                    String("world", 0, 0),
-                    String("!!!!", 0, 0),
+                    String("hello", l),
+                    String("world", l),
+                    String("!!!!", l),
                 ]
-            ), 0, 0
+            ), l
         )
 
         # TODO:
@@ -120,12 +122,12 @@ class TestIRBuilder(unittest.TestCase):
 
     def test_visit_If(self):
         node = If(
-            condition=Boolean(False, 0, 0),
-            then_scope=Scope(Block([String("hello", 0, 0)]), 0, 0),
+            condition=Boolean(False, l),
+            then_scope=Scope(Block([String("hello", l)]), l),
             elifs=[
-                If(Boolean(False, 0, 0), Scope(Block([String("a", 0, 0)]), 0, 0), [], None), 
-                If(Boolean(False, 0, 0), Scope(Block([String("b", 0, 0)]), 0, 0), [], None), 
-                If(Boolean(False, 0, 0), Scope(Block([String("c", 0, 0)]), 0, 0), [], None)
+                If(Boolean(False, l), Scope(Block([String("a", l)]), l), [], None), 
+                If(Boolean(False, l), Scope(Block([String("b", l)]), l), [], None), 
+                If(Boolean(False, l), Scope(Block([String("c", l)]), l), [], None)
             ],
             else_scope=None
         )

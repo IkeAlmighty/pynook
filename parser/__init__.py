@@ -124,7 +124,7 @@ class Parser:
 
         elif self.curr_token.type == TokenTypes.KW_LEAVE:
             self._eat(TokenTypes.KW_LEAVE)
-            return Nodes.Leave(self.tokenizer.state.row, self.tokenizer.state.col)
+            return Nodes.Leave(self.curr_token.location)
 
         elif self.curr_token.type == TokenTypes.KW_CONTINUE:
             self._eat(TokenTypes.KW_CONTINUE)
@@ -171,13 +171,11 @@ class Parser:
             raise Exception(f"Unhandled token type for beginning of statement {self.curr_token}")
 
     def _scope(self):
-        row = self.curr_token.row
-        col = self.curr_token.col
         self._eat(TokenTypes.LBRACE)
         block = self._block()
         self._eat(TokenTypes.RBRACE)
 
-        return Nodes.Scope(block, row, col)
+        return Nodes.Scope(block, self.curr_token.location)
 
     def _list(self):
         self._eat(TokenTypes.LBRACKET)
@@ -187,7 +185,7 @@ class Parser:
 
         self._eat(TokenTypes.RBRACKET)
 
-        return Nodes.List(items, self.curr_token.row, self.curr_token.col)
+        return Nodes.List(items, self.curr_token.location)
 
     def _set(self):
         self._eat(TokenTypes.KW_SET)
@@ -198,7 +196,7 @@ class Parser:
 
         self._eat(TokenTypes.RBRACKET)
 
-        return Nodes.Set(items, self.curr_token.row, self.curr_token.col)
+        return Nodes.Set(items, self.curr_token.location)
 
     def _items(self):
         """
@@ -238,7 +236,7 @@ class Parser:
             self._eat(TokenTypes.KW_CATCH)
             t = self.curr_token
             self._eat(TokenTypes.IDENTIFIER)
-            identifier = Nodes.Identifier(t.value, t.row, t.col)
+            identifier = Nodes.Identifier(t.value, t.location)
             catch_scope = self._scope()
             catches.append(Nodes.Catch(identifier, catch_scope))
 
@@ -256,8 +254,7 @@ class Parser:
             if self.curr_token.type == TokenTypes.STRING:
                 target = Nodes.Identifier(
                     value=self.curr_token.value, 
-                    row=self.tokenizer.state.row, 
-                    col=self.tokenizer.state.col
+                    location=self.curr_token.location, 
                 )
                 self._eat(TokenTypes.STRING)
             else:
@@ -286,7 +283,7 @@ class Parser:
     def _target(self):
         t = self.curr_token
         self._eat(TokenTypes.IDENTIFIER)
-        target = Nodes.Identifier(t.value, t.row, t.col)
+        target = Nodes.Identifier(t.value, t.location)
 
         while self.curr_token.type in (TokenTypes.DOT, TokenTypes.LBRACKET):
             if self.curr_token.type == TokenTypes.DOT:
@@ -295,7 +292,7 @@ class Parser:
                 self._eat(TokenTypes.IDENTIFIER)
                 target = Nodes.Member(
                     target,
-                    Nodes.Identifier(t.value, t.row, t.col)
+                    Nodes.Identifier(t.value, t.location)
                 )
             else:
                 target = self._subscript(target)
@@ -390,7 +387,7 @@ class Parser:
     def _pattern(self):
         t = self.curr_token
         self._eat(TokenTypes.IDENTIFIER)
-        identifier = Nodes.Identifier(t.value, t.row, t.col)
+        identifier = Nodes.Identifier(t.value, t.location)
 
         if self.curr_token.type == TokenTypes.COLON:
             self._eat(TokenTypes.COLON)
@@ -402,7 +399,7 @@ class Parser:
         if self.curr_token.type == TokenTypes.IDENTIFIER:
             t = self.curr_token
             self._eat(TokenTypes.IDENTIFIER)
-            return Nodes.Identifier(t.value, t.row, t.col)
+            return Nodes.Identifier(t.value, t.location)
 
         elif self.curr_token.type == TokenTypes.LBRACE:
             return self._destruct_scope()
@@ -433,7 +430,7 @@ class Parser:
         ):
             child = self._expr()
         
-        return Nodes.Return(child, self.tokenizer.state.row, self.tokenizer.state.col)
+        return Nodes.Return(child, self.curr_token.location)
 
     def _collect(self):
         self._eat(TokenTypes.KW_COLLECT)
@@ -442,7 +439,7 @@ class Parser:
         if self.curr_token.type in (TokenTypes.IDENTIFIER, TokenTypes.SPREAD):
             child = self._assignment_or_expr()
 
-        return Nodes.Collect(child, self.tokenizer.state.row, self.tokenizer.state.col)
+        return Nodes.Collect(child, self.curr_token.location)
 
     def _ignore(self):
         self._eat(TokenTypes.KW_IGNORE)
@@ -481,7 +478,7 @@ class Parser:
 
         scope = self._scope()
 
-        return Nodes.For(init, condition, action, scope, self.tokenizer.state.row, self.tokenizer.state.col)
+        return Nodes.For(init, condition, action, scope, self.curr_token.location)
 
     def _forin(self, identifier):
         """
@@ -494,9 +491,7 @@ class Parser:
         collection = self._expr()
         scope = self._scope()
 
-        row = self.tokenizer.state.row
-        col = self.tokenizer.state.col
-        return Nodes.ForIn(identifier, collection, scope, row, col)
+        return Nodes.ForIn(identifier, collection, scope, self.curr_token.location)
 
     def _if(self):
         self._eat(TokenTypes.KW_IF)
@@ -597,9 +592,7 @@ class Parser:
 
         if self.curr_token.type == TokenTypes.SPREAD:
             if len(params) == 0: 
-                row = self.tokenizer.state.row
-                col = self.tokenizer.state.col
-                raise Exception(f"Unexepected spread token '..' {row} {col}")
+                raise Exception(f"Unexepected spread token '..' {self.curr_token.location}")
             
             last_param = params.pop()
 
@@ -624,7 +617,7 @@ class Parser:
             self._eat(TokenTypes.COLON) 
             default = self._expr()
 
-        identifier = Nodes.Identifier(t.value, t.row, t.col)
+        identifier = Nodes.Identifier(t.value, t.location)
         result = Nodes.Parameter(identifier, default)
 
         return result
@@ -689,7 +682,7 @@ class Parser:
                 t = self.curr_token
                 self._eat(TokenTypes.IDENTIFIER)
 
-                member = Nodes.Identifier(t.value, t.row, t.col)
+                member = Nodes.Identifier(t.value, t.location)
 
                 expr = Nodes.Member(expr, member)
 
@@ -707,7 +700,7 @@ class Parser:
         elif self.curr_token.type == TokenTypes.IDENTIFIER:
             t = self.curr_token
             self._eat(TokenTypes.IDENTIFIER)
-            return Nodes.Identifier(t.value, t.row, t.col)
+            return Nodes.Identifier(t.value, t.location)
         else:
             return self._literal()
 
@@ -769,7 +762,7 @@ class Parser:
         bind_to = None
         if self.curr_token.type == TokenTypes.COLON:
             if not isinstance(expr, Identifier):
-                raise Exception(f"expressions cannot be used as argument identifier {self.tokenizer.state.row} {self.tokenizer.state.col}")
+                raise Exception(f"expressions cannot be used as argument identifier {self.curr_token.location}")
 
             self._eat(TokenTypes.COLON)
 
@@ -794,7 +787,7 @@ class Parser:
         t = self.curr_token
         if t.type in node_lookup.keys():
             self._eat(t.type)
-            return node_lookup[t.type](t.value, t.row, t.col)
+            return node_lookup[t.type](t.value, t.location)
         
         elif t.type == TokenTypes.LBRACE:
             return self._scope()

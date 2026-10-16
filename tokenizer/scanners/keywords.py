@@ -2,8 +2,6 @@ import re
 from tokenizer.tokens import Token, TokenTypes
 
 def scan_keyword(tokenizer, keyword):
-    row = tokenizer.state.row
-    col = tokenizer.state.col
 
     for i in range(0, len(keyword)):
         if tokenizer.state.curr_char != keyword[i]:
@@ -15,7 +13,7 @@ def scan_keyword(tokenizer, keyword):
         return None
 
     t_type = getattr(TokenTypes, f"KW_{keyword.upper()}")
-    return Token(t_type, keyword, row, col)
+    return Token(t_type, keyword, tokenizer.state.location)
 
 def scan_boolean(tokenizer):
     word = None
@@ -28,6 +26,6 @@ def scan_boolean(tokenizer):
            return None
        tokenizer.state.advance()
 
-    return Token(TokenTypes.BOOLEAN, word, tokenizer.state.row, tokenizer.state.col)
+    return Token(TokenTypes.BOOLEAN, word, tokenizer.state.location)
 
 

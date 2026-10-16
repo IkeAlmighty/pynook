@@ -35,86 +35,64 @@ class Tokenizer:
         self._skip_non_newline_whitespace()
 
         if self.state.curr_char == '\n':
-            row = self.state.row
-            col = self.state.col
             self.state.advance()
-            return Token(TokenTypes.NEWLINE, '\n', row, col)
+            return Token(TokenTypes.NEWLINE, '\n', self.state.location)
 
         # ^^^^^^ don't skip whitespace until the first newline 
         # has been tokenized!
         self._skip_whitespace()
 
         if self.state.curr_char == None:
-            return Token(TokenTypes.EOF, 'EOF', self.state.row, self.state.col) 
+            return Token(TokenTypes.EOF, 'EOF', self.state.location) 
 
         if self.state.curr_char == '#':
             self._skip_comment()
             return self.next()
         
         if self.state.curr_char == ';':
-            row = self.state.row
-            col = self.state.col
             self.state.advance()
-            return Token(TokenTypes.SEMICOLON, '\n', row, col)
+            return Token(TokenTypes.SEMICOLON, '\n', self.state.location)
 
         if self.state.curr_char == '.':
-            row = self.state.row
-            col = self.state.col
             if self.state.peek(1) == '.':
                 self.state.advance()
                 self.state.advance()
-                return Token(TokenTypes.SPREAD, '..', row, col)
+                return Token(TokenTypes.SPREAD, '..', self.state.location)
             else:
                 self.state.advance()
-                return Token(TokenTypes.DOT, '.', row, col)
+                return Token(TokenTypes.DOT, '.', self.state.location)
 
         if self.state.curr_char == ':':
-            row = self.state.row
-            col = self.state.col
             self.state.advance()
-            return Token(TokenTypes.COLON, ':', row, col)
+            return Token(TokenTypes.COLON, ':', self.state.location)
 
         if self.state.curr_char == ',':
-            row = self.state.row
-            col = self.state.col
             self.state.advance()
-            return Token(TokenTypes.COMMA, ',', row, col)
+            return Token(TokenTypes.COMMA, ',', self.state.location)
         
         if self.state.curr_char == '(':
-            row = self.state.row
-            col = self.state.col
             self.state.advance()
-            return Token(TokenTypes.LPAREN, '(', row, col)
+            return Token(TokenTypes.LPAREN, '(', self.state.location)
 
         if self.state.curr_char == ')':
-            row = self.state.row
-            col = self.state.col
             self.state.advance()
-            return Token(TokenTypes.RPAREN, ')', row, col)
+            return Token(TokenTypes.RPAREN, ')', self.state.location)
         
         if self.state.curr_char == '[':
-            row = self.state.row
-            col = self.state.col
             self.state.advance()
-            return Token(TokenTypes.LBRACKET, '[', row, col)
+            return Token(TokenTypes.LBRACKET, '[', self.state.location)
 
         if self.state.curr_char == ']':
-            row = self.state.row
-            col = self.state.col
             self.state.advance()
-            return Token(TokenTypes.RBRACKET, ']', row, col)
+            return Token(TokenTypes.RBRACKET, ']', self.state.location)
 
         if self.state.curr_char == '{':
-            row = self.state.row
-            col = self.state.col
             self.state.advance()
-            return Token(TokenTypes.LBRACE, '{', row, col)
+            return Token(TokenTypes.LBRACE, '{', self.state.location)
 
         if self.state.curr_char == '}':
-            row = self.state.row
-            col = self.state.col
             self.state.advance()
-            return Token(TokenTypes.RBRACE, '}', row, col)
+            return Token(TokenTypes.RBRACE, '}', self.state.location)
 
         if self.state.curr_char in ('"', "'"):
             return scan_string(self)

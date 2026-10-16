@@ -1,7 +1,9 @@
+from debug.location import Location
 
 class TokenizerState:
 
-    def __init__(self, source):
+    def __init__(self, source, file=None):
+        self.file = file
         self.source = source
 
         self.pos = 0
@@ -59,3 +61,11 @@ class TokenizerState:
         self.row = tokenizer_state.row
         self.curr_char = tokenizer_state.curr_char
 
+    @property
+    def location(self):
+        return Location(
+            row=self.row,
+            col=self.col,
+            file=self.file,
+            pos=self.pos
+        )
