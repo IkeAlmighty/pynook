@@ -1,4 +1,6 @@
-from tokenizer import TokenTypes
+from tokenizer.tokens import TokenTypes
+from tokenizer import Tokenizer
+
 import nast.nodes as Nodes
 
 class ExpressionNeededException(Exception):
@@ -43,8 +45,13 @@ class Parser:
             self.curr_token = self.tokenizer.next()
 
     def _snapshot(self):
-        tokenizer = self.tokenizer.snapshot()
-        snap = Parser(tokenizer, initialize_token=False)
+        tokenizer_state = self.tokenizer.state.snapshot()
+
+        snap = Parser(
+            Tokenizer(state=tokenizer_state), 
+            initialize_token=False
+        )
+
         snap.curr_token = self.curr_token
 
         return snap
@@ -117,7 +124,7 @@ class Parser:
 
         elif self.curr_token.type == TokenTypes.KW_LEAVE:
             self._eat(TokenTypes.KW_LEAVE)
-            return Nodes.Leave(self.tokenizer.row, self.tokenizer.col)
+            return Nodes.Leave(self.tokenizer.state.row, self.tokenizer.state.col)
 
         elif self.curr_token.type == TokenTypes.KW_CONTINUE:
             self._eat(TokenTypes.KW_CONTINUE)
@@ -249,8 +256,8 @@ class Parser:
             if self.curr_token.type == TokenTypes.STRING:
                 target = Nodes.Identifier(
                     value=self.curr_token.value, 
-                    row=self.tokenizer.row, 
-                    col=self.tokenizer.col
+                    row=self.tokenizer.state.row, 
+                    col=self.tokenizer.state.col
                 )
                 self._eat(TokenTypes.STRING)
             else:
@@ -426,7 +433,7 @@ class Parser:
         ):
             child = self._expr()
         
-        return Nodes.Return(child, self.tokenizer.row, self.tokenizer.col)
+        return Nodes.Return(child, self.tokenizer.state.row, self.tokenizer.state.col)
 
     def _collect(self):
         self._eat(TokenTypes.KW_COLLECT)
@@ -435,7 +442,7 @@ class Parser:
         if self.curr_token.type in (TokenTypes.IDENTIFIER, TokenTypes.SPREAD):
             child = self._assignment_or_expr()
 
-        return Nodes.Collect(child, self.tokenizer.row, self.tokenizer.col)
+        return Nodes.Collect(child, self.tokenizer.state.row, self.tokenizer.state.col)
 
     def _ignore(self):
         self._eat(TokenTypes.KW_IGNORE)
@@ -474,7 +481,7 @@ class Parser:
 
         scope = self._scope()
 
-        return Nodes.For(init, condition, action, scope, self.tokenizer.row, self.tokenizer.col)
+        return Nodes.For(init, condition, action, scope, self.tokenizer.state.row, self.tokenizer.state.col)
 
     def _forin(self, identifier):
         """
@@ -487,8 +494,8 @@ class Parser:
         collection = self._expr()
         scope = self._scope()
 
-        row = self.tokenizer.row
-        col = self.tokenizer.col
+        row = self.tokenizer.state.row
+        col = self.tokenizer.state.col
         return Nodes.ForIn(identifier, collection, scope, row, col)
 
     def _if(self):
@@ -590,8 +597,8 @@ class Parser:
 
         if self.curr_token.type == TokenTypes.SPREAD:
             if len(params) == 0: 
-                row = self.tokenizer.row
-                col = self.tokenizer.col
+                row = self.tokenizer.state.row
+                col = self.tokenizer.state.col
                 raise Exception(f"Unexepected spread token '..' {row} {col}")
             
             last_param = params.pop()
@@ -762,7 +769,7 @@ class Parser:
         bind_to = None
         if self.curr_token.type == TokenTypes.COLON:
             if not isinstance(expr, Identifier):
-                raise Exception(f"expressions cannot be used as argument identifier {self.tokenizer.row} {self.tokenizer.col}")
+                raise Exception(f"expressions cannot be used as argument identifier {self.tokenizer.state.row} {self.tokenizer.state.col}")
 
             self._eat(TokenTypes.COLON)
 

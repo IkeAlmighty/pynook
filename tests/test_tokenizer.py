@@ -1,4 +1,5 @@
 from tokenizer import *
+from tokenizer.exceptions import InvalidNumber
 
 from functools import wraps
 import unittest
