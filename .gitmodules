@@ -1,0 +1,3 @@
+[submodule "nk_stdlib"]
+	path = nk_stdlib
+	url = ../nk_stdlib
