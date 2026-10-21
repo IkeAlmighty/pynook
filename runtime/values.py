@@ -12,6 +12,15 @@ class NkValue:
     def less_than(self, rhs):
         raise Exception(f"{type(self)} does not support less than")
 
+    def resolve_local(self, name):
+        if name in self.members:
+            return self.members[name]
+
+
+@dataclass(frozen=True)
+class NkId(NkValue): 
+    value: str
+
 class NkScope(NkValue):
 
     reserved_names = {
@@ -254,6 +263,10 @@ class NkSet(NkValue):
 
     def __init__(self, items):
         self.items = []
+        self.members = {
+            "__id__": NkId("c0e0630b-6ef9-4e0b-b2be-2b96079a7cdb")
+        }
+
         for item in items:
             self.add(item)
 
@@ -289,7 +302,10 @@ class NkList(NkValue):
 
     def __init__(self, items):
         self.items = list(items)
-    
+        self.members = {
+            "__id__": NkId("c0e0630b-6ef9-4e0b-b2be-2b96079a7cdb")
+        }
+   
     def __repr__(self):
         return f"NkList{self.items}"
 
@@ -323,6 +339,9 @@ class NkBool(NkValue):
         if value == 'true': self.value = True
         elif value == 'false': self.value = False
         else: raise Exception(f"Invalid NkBool value {value}")
+        self.members = {
+            "__id__": NkId("ac2e02cc-0b91-402b-aea2-f0e88c110a76")
+        }
     
     def __repr__(self):
         return "NkBool(true)" if self.value else "NkBool(false)"
@@ -338,10 +357,13 @@ class NkArgument:
 @dataclass
 class NkSpreadArgument:
     values: NkList
-
+    
 @dataclass(frozen=True)
 class NkInt(NkValue): 
     value: int
+    members = {
+        "__id__": NkId("882b5545-cb21-4875-94ac-134ab8e055e5")
+    }
 
     def add(self, rhs):
         if isinstance(rhs, NkInt):
@@ -361,16 +383,30 @@ class NkInt(NkValue):
 @dataclass(frozen=True)
 class NkFloat(NkValue):
     value: float
+    members = {
+        "__id__": NkId("1ce035b4-21e2-45ba-a1a6-13b9696f87de")
+    }
 
 @dataclass(frozen=True)
 class NkString(NkValue):
     value: str
-
+    members = {
+        "__id__": NkId("4693a742-bf91-49a8-9301-93900432a18e")
+    }
+    
 @dataclass
-class NkNone(NkValue): pass
+class NkNone(NkValue): 
+    members = {
+        "__id__": NkId("1e80e598-08fc-463e-961c-bfbadb11bb92")
+    }
+
     
 @dataclass(frozen=True)
-class NkNull(NkValue): pass
+class NkNull(NkValue):
+    members = {
+        "__id__": NkId("357f25a5-18e8-4ce6-8a27-2fadd6f52055")
+    }
+
 
 # used for argument binding:
 @dataclass
@@ -382,6 +418,7 @@ class NkUnresolved(NkValue): pass
 
 @dataclass
 class NkCollectAll(NkValue): pass
+
 
 NK_NONE = NkNone()
 NK_NULL = NkNull()

@@ -385,3 +385,22 @@ class TestIntegration(unittest.TestCase):
 
         c = scope.resolve("c")
         self.assertEqual(c, NK_NONE)
+
+    def test_throw(self):
+        scope = self.load_source("""
+            c: none
+            a: {
+                try {
+                    b: {
+                        throw(2)
+                    }
+                }
+                catch exception {
+                    c: exception
+                }
+            }
+        """)
+
+        c = scope.resolve("c")
+
+        self.assertEqual(c, NkInt(2))

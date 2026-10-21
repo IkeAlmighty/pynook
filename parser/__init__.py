@@ -225,23 +225,32 @@ class Parser:
         self._eat(TokenTypes.KW_THROW)
         expr = self._expr()
 
-        return Nodes.Throw(expr)
+        return Nodes.Throw(expr, self.curr_token.location)
 
     def _trycatch(self):
         self._eat(TokenTypes.KW_TRY)
+        self._skip_newlines()
         try_scope = self._scope()
+        self._skip_newlines()
         catches = []
         node_finally = None
         while self.curr_token.type == TokenTypes.KW_CATCH:
             self._eat(TokenTypes.KW_CATCH)
+
             t = self.curr_token
             self._eat(TokenTypes.IDENTIFIER)
+            self._skip_newlines()
+
             identifier = Nodes.Identifier(t.value, t.location)
+
             catch_scope = self._scope()
-            catches.append(Nodes.Catch(identifier, catch_scope))
+            self._skip_newlines()
+
+            catches.append(Nodes.Catch(identifier, catch_scope, t.location))
 
         if self.curr_token.type == TokenTypes.KW_FINALLY:
             self._eat(TokenTypes.KW_FINALLY)
+            self._skip_newlines()
             node_finally = self._scope()
             
         return Nodes.TryCatch(try_scope, catches, node_finally)

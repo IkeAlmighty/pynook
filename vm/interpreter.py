@@ -186,8 +186,6 @@ class VirtualMachine:
 
         # for loading scope members:
         elif isinstance(key, NkString):
-            if not isinstance(owner, NkScope):
-                raise Exception("string subscriptions are only valid on scopes")
 
             member = owner.resolve_local(key.value)
 
@@ -360,6 +358,17 @@ class VirtualMachine:
             self.frame.definition.instructions
         )
 
+    def Throw(self, inst):
+        throw_value = self.stack.pop()
+
+        # set the completion status:
+        self.frame.completion = ThrowCompletion(throw_value)
+
+        # jump to end of this stack's instruction list:
+        self.frame.ip = len(
+            self.frame.definition.instructions
+        )
+
     def Leave(self, inst):
 
         # set the completion status:
@@ -437,6 +446,22 @@ class Frame:
 
         self.completion = NormalCompletion()
         self.control_types = definition.control_types or []
+
+class ThrowCompletion:
+    
+    def __init__(self, value):
+        self.value = value
+
+        def apply(self, vm):
+            if THROW_DEST not in vm.frame.control_types:
+                vm.frame.completion = self
+
+                vm.frame.ip = len(
+                    vm.frame.definition.instructions
+                )
+
+            else:
+                vm.stack.append(self.value)
 
 class ReturnCompletion:
 

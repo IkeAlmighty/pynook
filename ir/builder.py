@@ -234,6 +234,11 @@ class IRBuilder:
         raise NotImplementedError()
 
     def visit_TryCatch(self, node):
+        # dispatch scope
+
+        # dispatch catch for each catch:
+
+        # dispatch finally:
         raise NotImplementedError()
 
     def visit_Parameters(self, node):

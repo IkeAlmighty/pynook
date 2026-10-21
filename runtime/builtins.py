@@ -9,6 +9,8 @@ from ir.definitions import ScopeDefinition
 from ir.instructions import *
 from runtime.values import *
 
+from project_paths import rootpath
+
 def _create_const_instruction(param):
     type_to_string_lookup = {
         str: "string",
@@ -99,8 +101,9 @@ def inject_builtins(nk_scope):
 class BuiltIns:
 
     stdlib_lookup = {
-        "math.nk": "stdlib/math.nk",
-        "utest.nk": "stdlib/utest.nk"
+        "math.nk": rootpath + "/nk_stdlib/math.nk",
+        "utest.nk": rootpath + "/nk_stdlib/utest.nk",
+        "types.nk": rootpath + "/nk_stdlib/types.nk"
     }
 
     @staticmethod
