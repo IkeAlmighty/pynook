@@ -7,6 +7,7 @@ LEAVE_DEST = "leave_dest"
 CONTINUE_DEST = "continue_dest"
 COLLECT_DEST = "collect_dest"
 COLLECT_RESOLVABLE_MEMBERS = "collect_resolvable_members"
+THROW_DEST = "throw_dest"
 
 class IRBuilder:
 
@@ -228,29 +229,95 @@ class IRBuilder:
         self.__emit_load(node)
 
     def visit_Catch(self, node):
-        raise NotImplementedError()
+        catch_definition = ScopeDefinition(
+            control_types=[
+                RETURN_DEST, 
+                COLLECT_DEST, 
+                LEAVE_DEST, 
+                COLLECT_RESOLVABLE_MEMBERS
+            ]
+        )
+
+        # TODO: the catch identifier needs to be treated
+        # like a function parameter, instead of another random member,
+        # that way it doesn't get auto promoted if it shadows 
+        # something. TODO (runtime/values): parameters need to be 
+        # ignored in shadow promotion
+
+        
+        self.definition_stack.append(catch_definition)
+
+        # bind the identifier to the throw value
+        # (throw completions put the value on the stack)
+        self.emit(ir.Store(node.identifier.value))
+
+        self.dispatch(node.scope)
+        self.definition_stack.pop()
 
     def visit_Throw(self, node):
-        raise NotImplementedError()
+        self.dispatch(node.expr) 
+        self.emit(ir.Throw())
 
     def visit_TryCatch(self, node):
-        # dispatch scope
+        
+        try_definition = ScopeDefinition(
+            control_types=[
+                RETURN_DEST, 
+                COLLECT_DEST, 
+                LEAVE_DEST, 
+                COLLECT_RESOLVABLE_MEMBERS
+            ]
+        )
 
-        # dispatch catch for each catch:
+        finally_definition = ScopeDefinition(
+            control_types=[
+                RETURN_DEST, 
+                COLLECT_DEST, 
+                LEAVE_DEST, 
+                COLLECT_RESOLVABLE_MEMBERS
+            ]
+        )
 
-        # dispatch finally:
-        raise NotImplementedError()
+        # this container is does not finish any completions
+        # except the a throw completion (and a normal completion)
+        container_definition = ScopeDefinition(
+            control_types=[THROW_DEST, COLLECT_RESOLVABLE_MEMBERS]
+        )
 
+        self.definition_stack.append(container_definition)
+        
+        self.definition_stack.append(try_definition) 
+        self.dispatch(node.try_scope)
+        self.definition_stack.pop()
+
+        # ThrowCompletion will skip the instruction pointer
+        # over this jump, allowing catch to run:
+        catch_jump = ir.Jump(target=None)
+        self.emit(catch_jump)
+
+        self.dispatch(node.catch)
+        
+        # backpatch:
+        catch_jump.target = self.curr_inst_length
+
+        self.definition_stack.append(finally_definition)
+        self.dispatch(node.finally_scope)
+        self.definition_stack.pop()
+
+        # pop the container definition
+        self.definition_stack.pop()
+
+        self.emit(ir.CreateScope(container_definition))
+                                              
     def visit_Parameters(self, node):
         parameter_definition = ScopeDefinition()
         
         self.definition_stack.append(parameter_definition)
 
-        try: 
-            for parameter in node.parameters:
-                self.dispatch(parameter)
-        finally:
-            self.definition_stack.pop()
+        for parameter in node.parameters:
+            self.dispatch(parameter)
+
+        self.definition_stack.pop()
 
         return parameter_definition
 

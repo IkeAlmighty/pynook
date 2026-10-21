@@ -453,16 +453,17 @@ class ThrowCompletion:
         self.value = value
 
         def apply(self, vm):
-            if THROW_DEST not in vm.frame.control_types:
-                vm.frame.completion = self
+            if THROW_DEST in vm.frame.control_types:
+                # skip over the catch jump instruction:
+                vm.frame.ip = vm.frame.ip + 1
+                self.stack.append(self.value)
 
+            else:
+                vm.frame.completion = self
                 vm.frame.ip = len(
                     vm.frame.definition.instructions
                 )
-
-            else:
-                vm.stack.append(self.value)
-
+                        
 class ReturnCompletion:
 
     def __init__(self, value):

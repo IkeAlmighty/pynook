@@ -392,7 +392,7 @@ class TestIntegration(unittest.TestCase):
             a: {
                 try {
                     b: {
-                        throw(2)
+                        throw 2
                     }
                 }
                 catch exception {

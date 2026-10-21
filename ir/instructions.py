@@ -77,6 +77,9 @@ class Return(Instruction): pass
 @dataclass
 class Leave(Instruction): pass
 
+@dataclass 
+class Throw(Instruction): pass
+
 #####################################################
 ############### Binary Op Instructions ##############
 #####################################################

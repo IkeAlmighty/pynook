@@ -71,8 +71,8 @@ class Throw(Statement):
 @dataclass
 class TryCatch(Statement):
     try_scope: Scope
-    catches: list[ Catch ]
-    finally_scope: Scope
+    catch: Catch | None
+    finally_scope: Scope | None
 
 @dataclass
 class Parameters(Node):
