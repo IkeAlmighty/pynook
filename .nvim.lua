@@ -1,0 +1,11 @@
+-- your global nvim config needs the following to load this config:
+--
+-- vim.o.exrc = true
+-- vim.o.secure = true
+--
+-- then when loading a file in nvim in this directory, (v) the untrusted code
+-- (which is this repo's config) and ':trust' it. Nook files should be then
+-- show up with proper highlighting.
+--
+--
+dofile(vim.fn.getcwd() .. "/.nvim/init.lua")
