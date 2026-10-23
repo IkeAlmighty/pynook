@@ -57,6 +57,7 @@ class NkScope(NkValue):
         self.members["__parent__"] = self.parent
         if self.name:
             self.members["__name__"] = NkString(self.name)
+            self.members[self.name] = self
         else:
             self.members["__name__"] = NK_NONE
         
