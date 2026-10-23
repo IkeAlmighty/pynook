@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from ir.builder import THROW_DEST, RETURN_DEST, LEAVE_DEST, COLLECT_DEST
 
 class ScopeDefinition:
 

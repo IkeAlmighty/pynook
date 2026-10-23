@@ -389,14 +389,16 @@ class TestIntegration(unittest.TestCase):
     def test_throw(self):
         scope = self.load_source("""
             c: none
-            a: {
-                try {
-                    b: {
-                        throw 2
+            f: {
+                a: {
+                    try {
+                        b: {
+                            throw 2
+                        }
                     }
-                }
-                catch exception {
-                    c: exception
+                    catch exception {
+                        c: exception
+                    }
                 }
             }
         """)

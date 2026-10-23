@@ -2,7 +2,7 @@ from __future__ import annotations
 from ir.instructions import *
 from runtime.values import *
 from runtime.builtins import create_builtin
-from ir.builder import RETURN_DEST, LEAVE_DEST, CONTINUE_DEST, COLLECT_DEST, COLLECT_RESOLVABLE_MEMBERS
+from ir.builder import RETURN_DEST, LEAVE_DEST, CONTINUE_DEST, COLLECT_DEST, COLLECT_RESOLVABLE_MEMBERS, THROW_DEST
 
 class VirtualMachine:
 
@@ -18,6 +18,7 @@ class VirtualMachine:
             Store: self.Store,
             StoreMember: self.StoreMember,
             PushConst: self.PushConst,
+            Pop: self.Pop,
             CreateScope: self.CreateScope,
             CreateFunction: self.CreateFunction,
             CreateArgument: self.CreateArgument,
@@ -29,6 +30,7 @@ class VirtualMachine:
             Collect: self.Collect,
             Leave: self.Leave,
             Return: self.Return,
+            Throw: self.Throw,
             Equal: self.Equal,
             JumpIfFalse: self.JumpIfFalse,
             Jump: self.Jump,
@@ -80,41 +82,38 @@ class VirtualMachine:
 
     def execute(self, scope, definition):
         frame = Frame(scope, definition)
-        try:
-            self.frames.append(frame)
+        self.frames.append(frame)
 
-            instructions = definition.instructions
+        instructions = definition.instructions
 
-            while frame.ip < len(instructions):
-                instruction = instructions[frame.ip]
-                frame.ip += 1
-                self.ins_lookup[type(instruction)](instruction)
+        while frame.ip < len(instructions):
+            instruction = instructions[frame.ip]
+            frame.ip += 1
+            self.ins_lookup[type(instruction)](instruction)
 
-        finally:
+        # first, promote any resolvable members in this
+        # frame's scope to their owners:
 
-            # first, promote any resolvable members in this
-            # frame's scope to their owners:
+        # TODO: right now, collect only works inside of scopes. 
+        # the original idea was to allow it inside of nested lists and 
+        # nested sets. This can be done by restructuring the parse tree
+        # output and defining lists and sets as scopes with '[' ... ']' 
+        # instead of '{' ... '}'
 
-            # TODO: right now, collect only works inside of scopes. 
-            # the original idea was to allow it inside of nested lists and 
-            # nested sets. This can be done by restructuring the parse tree
-            # output and defining lists and sets as scopes with '[' ... ']' 
-            # instead of '{' ... '}'
+        if COLLECT_RESOLVABLE_MEMBERS in definition.control_types:
+            for name in frame.scope.unreserved_members:
+                owner = frame.scope.parent.resolve_owner(name)
+                if owner:
+                    owner.assign(name, frame.scope.resolve(name))
 
-            # At that point, NkScope.collect_to should also be examined to 
-            # see if it is a better fit here:
-            if COLLECT_RESOLVABLE_MEMBERS in definition.control_types:
-                for name in frame.scope.unreserved_members:
-                    owner = frame.scope.parent.resolve_owner(name)
-                    if owner:
-                        owner.assign(name, frame.scope.resolve(name))
+        # then, apply the completion type and pop the frame:
+        completion = frame.completion 
+        self.frames.pop() 
 
-            # then, apply the completion type and pop the frame:
-            completion = frame.completion 
-            self.frames.pop() 
+        if self.frames:
+            completion.apply(self)
 
-            if self.frames:
-                completion.apply(self)
+        return completion
 
     ###################################################################################
     ##########                  Instruction Implementations                 ###########
@@ -124,6 +123,9 @@ class VirtualMachine:
         const = inst.value
         value = self.materialize(const)
         self.stack.append(value)
+
+    def Pop(self, inst):
+        self.stack.pop()
 
     def Store(self, inst):
         value = self.stack.pop()
@@ -229,13 +231,14 @@ class VirtualMachine:
         nkscope to the stack.
         """
         scope = NkScope(
-            parent=self.frame.scope, 
+            parent=self.frame.scope,
             body_definition=inst.definition,
         )
 
-        self.execute(scope, inst.definition)
+        completion = self.execute(scope, inst.definition)
 
-        self.stack.append(scope)
+        if isinstance(completion, NormalCompletion):
+            self.stack.append(scope)
     
     def CreateFunction(self, inst):
         """
@@ -452,17 +455,18 @@ class ThrowCompletion:
     def __init__(self, value):
         self.value = value
 
-        def apply(self, vm):
-            if THROW_DEST in vm.frame.control_types:
-                # skip over the catch jump instruction:
-                vm.frame.ip = vm.frame.ip + 1
-                self.stack.append(self.value)
+    def apply(self, vm):
+        if THROW_DEST in vm.frame.control_types:
+            # skip over the catch jump instruction:
+            # (has to skip the Pop for the try as well as the Jump)
+            vm.frame.ip = vm.frame.ip + 2 # skipping the original Pop, Jump
+            vm.stack.append(self.value) # append Throw value to stack
 
-            else:
-                vm.frame.completion = self
-                vm.frame.ip = len(
-                    vm.frame.definition.instructions
-                )
+        else:
+            vm.frame.completion = self
+            vm.frame.ip = len(
+                vm.frame.definition.instructions
+            )
                         
 class ReturnCompletion:
 

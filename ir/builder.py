@@ -244,15 +244,18 @@ class IRBuilder:
         # something. TODO (runtime/values): parameters need to be 
         # ignored in shadow promotion
 
-        
         self.definition_stack.append(catch_definition)
 
         # bind the identifier to the throw value
         # (throw completions put the value on the stack)
         self.emit(ir.Store(node.identifier.value))
 
-        self.dispatch(node.scope)
+        self.dispatch(node.scope.block)
         self.definition_stack.pop()
+
+        self.emit(
+            ir.CreateScope(catch_definition)
+        )
 
     def visit_Throw(self, node):
         self.dispatch(node.expr) 
@@ -260,24 +263,6 @@ class IRBuilder:
 
     def visit_TryCatch(self, node):
         
-        try_definition = ScopeDefinition(
-            control_types=[
-                RETURN_DEST, 
-                COLLECT_DEST, 
-                LEAVE_DEST, 
-                COLLECT_RESOLVABLE_MEMBERS
-            ]
-        )
-
-        finally_definition = ScopeDefinition(
-            control_types=[
-                RETURN_DEST, 
-                COLLECT_DEST, 
-                LEAVE_DEST, 
-                COLLECT_RESOLVABLE_MEMBERS
-            ]
-        )
-
         # this container is does not finish any completions
         # except the a throw completion (and a normal completion)
         container_definition = ScopeDefinition(
@@ -286,29 +271,55 @@ class IRBuilder:
 
         self.definition_stack.append(container_definition)
         
-        self.definition_stack.append(try_definition) 
+        # push control types for the try scope:
+        self.control_types_stack.append([
+            RETURN_DEST, 
+            COLLECT_DEST, 
+            LEAVE_DEST, 
+            COLLECT_RESOLVABLE_MEMBERS
+        ])
+
+        # dispatch the try scope:
         self.dispatch(node.try_scope)
-        self.definition_stack.pop()
+        self.emit(ir.Pop()) # pop the try scope from the stack 
 
-        # ThrowCompletion will skip the instruction pointer
-        # over this jump, allowing catch to run:
-        catch_jump = ir.Jump(target=None)
-        self.emit(catch_jump)
-
-        self.dispatch(node.catch)
+        # pop try scope control types:
+        self.control_types_stack.pop()
         
-        # backpatch:
-        catch_jump.target = self.curr_inst_length
+        if node.catch:
+            # ThrowCompletion will skip the instruction pointer
+            # over this jump, allowing catch to run:
+            catch_jump = ir.Jump(target=None)
+            self.emit(catch_jump)
 
-        self.definition_stack.append(finally_definition)
-        self.dispatch(node.finally_scope)
-        self.definition_stack.pop()
+            self.dispatch(node.catch)
+            self.emit(ir.Pop()) # pop catch scope from stack
+        
+            # backpatch:
+            catch_jump.target = self.curr_inst_length
+
+        if node.finally_scope:
+            # push the control types for the finally scope:
+            self.control_types_stack.append([
+                RETURN_DEST, 
+                COLLECT_DEST, 
+                LEAVE_DEST, 
+                COLLECT_RESOLVABLE_MEMBERS
+            ])
+
+            # dispatch finally scope:
+            self.dispatch(node.finally_scope)
+            self.emit(ir.Pop()) # pop finally scope from the stack
+
+            # pop finally_scope control types:
+            self.control_types_stack.pop()
 
         # pop the container definition
         self.definition_stack.pop()
 
         self.emit(ir.CreateScope(container_definition))
-                                              
+        self.emit(ir.Pop())
+
     def visit_Parameters(self, node):
         parameter_definition = ScopeDefinition()
         

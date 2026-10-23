@@ -25,6 +25,9 @@ class StoreMember(Instruction): pass
 class PushConst(Instruction):
     value: Constant
 
+@dataclass
+class Pop(Instruction): pass
+
 @dataclass 
 class CreateScope(Instruction):
     definition: ScopeDefinition

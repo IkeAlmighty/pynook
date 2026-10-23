@@ -147,7 +147,7 @@ class NkScope(NkValue):
                 raise Exception(f"name {name} is unbound for scope call {new_scope.name}")
 
         # the end of a body definition should include a push of NK_NONE to the stack,
-        # as a default return value. Return Instructions will short circuit this by 
+        # as a default return value. Control Flow Instructions will short circuit this by 
         # moving the instruction pointer past the end of the body_definition instructions:
         if not self.is_builtin:
             new_scope.body_definition.instructions.append(
