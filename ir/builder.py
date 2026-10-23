@@ -6,8 +6,9 @@ RETURN_DEST = "return_dest"
 LEAVE_DEST = "leave_dest"
 CONTINUE_DEST = "continue_dest"
 COLLECT_DEST = "collect_dest"
-COLLECT_RESOLVABLE_MEMBERS = "collect_resolvable_members"
 THROW_DEST = "throw_dest"
+
+PROMOTE_SHADOWS = "promote_shadows"
 
 class IRBuilder:
 
@@ -22,6 +23,8 @@ class IRBuilder:
 
         # scope types annotations:
         self.control_types_stack = [[]]
+
+        self.name_hints = []
 
     def build(self, ast):
         self.dispatch(ast)
@@ -48,6 +51,13 @@ class IRBuilder:
             raise Exception("scope types stack is empty, cannot access")
 
         return self.control_types_stack[-1] 
+
+    @property
+    def name_hint(self):
+        if len(self.name_hints) == 0:
+            return None
+
+        return self.name_hints[-1]
 
     def emit(self, instruction):
         self.curr_definition.instructions.append(instruction)
@@ -157,11 +167,17 @@ class IRBuilder:
     #####################################################
 
     def visit_File(self, node):
-        self.control_types_stack.append([COLLECT_DEST, RETURN_DEST, LEAVE_DEST])
+        self.control_types_stack.append([
+            COLLECT_DEST, 
+            RETURN_DEST, 
+            LEAVE_DEST,
+        ])
 
         # file is really just a wrapper for scope, that adds
         # control type hints for the file scope definition
         self.visit_Scope(node)
+
+        self.control_types_stack.pop()
         
     def visit_Scope(self, node):
         definition = ScopeDefinition(
@@ -173,7 +189,7 @@ class IRBuilder:
         self.definition_stack.pop()
 
         self.emit(
-            ir.CreateScope(definition)
+            ir.CreateScope(definition, name_hint=self.name_hint)
         )
 
     def visit_Block(self, node):
@@ -234,7 +250,7 @@ class IRBuilder:
                 RETURN_DEST, 
                 COLLECT_DEST, 
                 LEAVE_DEST, 
-                COLLECT_RESOLVABLE_MEMBERS
+                PROMOTE_SHADOWS
             ]
         )
 
@@ -266,7 +282,7 @@ class IRBuilder:
         # this container is does not finish any completions
         # except the a throw completion (and a normal completion)
         container_definition = ScopeDefinition(
-            control_types=[THROW_DEST, COLLECT_RESOLVABLE_MEMBERS]
+            control_types=[THROW_DEST, PROMOTE_SHADOWS]
         )
 
         self.definition_stack.append(container_definition)
@@ -276,7 +292,7 @@ class IRBuilder:
             RETURN_DEST, 
             COLLECT_DEST, 
             LEAVE_DEST, 
-            COLLECT_RESOLVABLE_MEMBERS
+            PROMOTE_SHADOWS
         ])
 
         # dispatch the try scope:
@@ -304,7 +320,7 @@ class IRBuilder:
                 RETURN_DEST, 
                 COLLECT_DEST, 
                 LEAVE_DEST, 
-                COLLECT_RESOLVABLE_MEMBERS
+                PROMOTE_SHADOWS
             ])
 
             # dispatch finally scope:
@@ -365,12 +381,30 @@ class IRBuilder:
         self.emit(
             ir.CreateFunction(
                 body_definition,
-                parameter_definition
+                parameter_definition,
+                name_hint=self.name_hint
             )
         )
         
     def visit_Assignment(self, node):
+        def get_name(target):
+            if isinstance(target, ast.Identifier):
+                return target.value
+
+            elif isinstance(target, ast.Member):
+                return target.name.value
+
+            elif isinstance(target, ast.Subscript):
+                return get_name(target.expr)
+
+            return None
+
+        name_hint = get_name(node.target)
+
+        self.name_hints.append(name_hint)
         self.dispatch(node.value)
+        self.name_hints.pop()
+
         self.__emit_store(node.target)
         
     def visit_Member(self, node):
@@ -391,7 +425,7 @@ class IRBuilder:
         self.dispatch(node.expr)
         self.emit(end_jump)
 
-        self.control_types_stack.append([CONTINUE_DEST, LEAVE_DEST, COLLECT_RESOLVABLE_MEMBERS])
+        self.control_types_stack.append([CONTINUE_DEST, LEAVE_DEST, PROMOTE_SHADOWS])
         self.dispatch(node.scope)
         self.control_types_stack.pop()
 
@@ -428,7 +462,7 @@ class IRBuilder:
         branches = [(node.condition, node.then_scope)]
 
         # mark control types for all following if, else, and elif scopes: 
-        self.control_types_stack.append([LEAVE_DEST, RETURN_DEST, COLLECT_RESOLVABLE_MEMBERS])
+        self.control_types_stack.append([LEAVE_DEST, RETURN_DEST, PROMOTE_SHADOWS])
 
         for elif_node in node.elifs:
             branches.append((elif_node.condition, elif_node.then_scope))

@@ -406,3 +406,20 @@ class TestIntegration(unittest.TestCase):
         c = scope.resolve("c")
 
         self.assertEqual(c, NkInt(2))
+
+    def test_names(self):
+        scope = self.load_source("""
+            foo: {
+                a: __name__
+            }
+
+            b: foo.__name__
+        """)
+        
+        b = scope.resolve("b")
+        foo = scope.resolve("foo")
+        foo_a = foo.resolve("a")
+
+        self.assertEqual(b, NkString("foo"))
+        self.assertEqual(foo_a, NkString("foo"))
+        

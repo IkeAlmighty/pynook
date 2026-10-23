@@ -2,7 +2,7 @@ from __future__ import annotations
 from ir.instructions import *
 from runtime.values import *
 from runtime.builtins import create_builtin
-from ir.builder import RETURN_DEST, LEAVE_DEST, CONTINUE_DEST, COLLECT_DEST, COLLECT_RESOLVABLE_MEMBERS, THROW_DEST
+from ir.builder import RETURN_DEST, LEAVE_DEST, CONTINUE_DEST, COLLECT_DEST, PROMOTE_SHADOWS, THROW_DEST
 
 class VirtualMachine:
 
@@ -94,13 +94,7 @@ class VirtualMachine:
         # first, promote any resolvable members in this
         # frame's scope to their owners:
 
-        # TODO: right now, collect only works inside of scopes. 
-        # the original idea was to allow it inside of nested lists and 
-        # nested sets. This can be done by restructuring the parse tree
-        # output and defining lists and sets as scopes with '[' ... ']' 
-        # instead of '{' ... '}'
-
-        if COLLECT_RESOLVABLE_MEMBERS in definition.control_types:
+        if PROMOTE_SHADOWS in definition.control_types:
             for name in frame.scope.unreserved_members:
                 owner = frame.scope.parent.resolve_owner(name)
                 if owner:
@@ -131,10 +125,6 @@ class VirtualMachine:
         value = self.stack.pop()
 
         if isinstance(value, NkScope):
-            # assign name if the scope doesn't have one
-            if value.name is None:
-                value.name = inst.name
-
             value.aliases.add(inst.name)
 
         self.frame.scope.assign(inst.name, value)
@@ -231,6 +221,7 @@ class VirtualMachine:
         nkscope to the stack.
         """
         scope = NkScope(
+            name=inst.name_hint,
             parent=self.frame.scope,
             body_definition=inst.definition,
         )
@@ -245,6 +236,7 @@ class VirtualMachine:
         creates a NkScope, pushes it to the stack.
         """
         function = NkScope(
+            name=inst.name_hint,
             parent=self.frame.scope,
             body_definition=inst.body_definition,
             parameter_definition=inst.parameter_definition,

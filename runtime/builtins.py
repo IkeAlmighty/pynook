@@ -131,9 +131,19 @@ class BuiltIns:
         ast = parser._block()
         ir = ir_builder.build(ast)
 
+        def find_root_scope(scope):
+            if scope.parent == None:
+                return scope
+            else:
+                return find_root_scope(scope.parent)
+
+        # new files should have the root builtin scope
+        # as their parent:
+        parent = find_root_scope(vm.frame.scope)
+
         # create a scope to run file against:
         file_scope = NkScope(
-            parent=vm.frame.scope,
+            parent=parent,
             body_definition=ir,
             name=module_name
         )

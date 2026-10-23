@@ -54,8 +54,11 @@ class NkScope(NkValue):
     def __initialize_default_members(self):
         # initialize reserved members:
         self.members["__scope__"] = self
-        self.members["__name__"] = self.name
         self.members["__parent__"] = self.parent
+        if self.name:
+            self.members["__name__"] = NkString(self.name)
+        else:
+            self.members["__name__"] = NK_NONE
         
         # the root filescope is the main scope (child of the builtins scope)
         if self.parent is not None and self.parent.parent is None:

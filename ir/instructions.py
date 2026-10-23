@@ -31,11 +31,13 @@ class Pop(Instruction): pass
 @dataclass 
 class CreateScope(Instruction):
     definition: ScopeDefinition
+    name_hint: str | None = None
 
 @dataclass
 class CreateFunction(Instruction):
     body_definition: ScopeDefinition
     parameter_definition: ScopeDefinition
+    name_hint: str | None = None
 
 @dataclass 
 class CreateArgument(Instruction):
