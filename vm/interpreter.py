@@ -1,8 +1,9 @@
 from __future__ import annotations
 from ir.instructions import *
-from runtime.values import *
-from runtime.builtins import create_builtin
 from ir.builder import RETURN_DEST, LEAVE_DEST, CONTINUE_DEST, COLLECT_DEST, PROMOTE_SHADOWS, THROW_DEST
+from runtime.operators import OpTypes
+from runtime.builtins import create_builtin
+from runtime.values import *
 
 class VirtualMachine:
 
@@ -326,10 +327,8 @@ class VirtualMachine:
         rhs = self.stack.pop()
         lhs = self.stack.pop()
 
-        if rhs == lhs:
-            self.stack.append(NK_TRUE)
-        else:
-            self.stack.append(NK_FALSE)
+        result = InfixEvaluator.evaluate(OpTypes.EQUAL, lhs, rhs)
+        self.stack.append(result)
 
     def Return(self, inst):
         return_value = self.stack.pop()
@@ -381,9 +380,8 @@ class VirtualMachine:
         rhs = self.stack.pop()
         lhs = self.stack.pop()
 
-        self.stack.append(
-            lhs.add(rhs)
-        )
+        result = InfixEvaluator.evaluate(OpTypes.ADD, lhs, rhs)
+        self.stack.append(result)
 
     def Divide(self, inst): 
         raise NotImplementedError()
@@ -422,7 +420,8 @@ class VirtualMachine:
         rhs = self.stack.pop()
         lhs = self.stack.pop()
 
-        self.stack.append(lhs.less_than(rhs))
+        result = InfixEvaluator.evaluate(OpTypes.LESS, lhs, rhs)
+        self.stack.append(result)
 
     def GreaterThan(self, inst): 
         raise NotImplementedError()
