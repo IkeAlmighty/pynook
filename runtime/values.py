@@ -23,14 +23,7 @@ class NkId(NkValue):
 
 class NkScope(NkValue):
 
-    reserved_names = {
-        "__name__",
-        "__main__",
-        "__scope__",
-        "__file__", 
-        "__parent__"
-    }
-
+    
     def __init__(
         self, 
         parent=None, 
@@ -48,6 +41,16 @@ class NkScope(NkValue):
         self.aliases = set()
         self.is_file_scope = is_file_scope
         self.is_builtin = is_builtin
+
+        self.reserved_names = {
+            "__name__",
+            "__main__",
+            "__scope__",
+            "__file__", 
+            "__parent__"
+        }
+
+        if self.name: self.reserved_names.add(self.name)
 
         self.__initialize_default_members()
 
@@ -75,9 +78,8 @@ class NkScope(NkValue):
     def unreserved_members(self):
         result = {}
         for name, value in self.members.items():
-            if name not in NkScope.reserved_names:
-                if not name.startswith('___'):
-                    result[name] = value
+            if name not in self.reserved_names:
+                result[name] = value
 
         return result
 
@@ -113,7 +115,7 @@ class NkScope(NkValue):
         return None
 
     def assign(self, name, value):
-        if name in NkScope.reserved_names:
+        if name in self.reserved_names:
             raise Exception(f"{name} is a reserved name, cannot assign {value} to it")
 
         self.members[name] = value
@@ -137,7 +139,7 @@ class NkScope(NkValue):
         )
 
         parameters = new_scope.unreserved_members
-        
+
         # bind the arguments based on this scope's parameters
         bindings = self.__gather_argument_bindings(arguments.items, parameters)
 
