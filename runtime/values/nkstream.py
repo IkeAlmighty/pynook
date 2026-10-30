@@ -1,4 +1,4 @@
-from runtime.values.nkprimitives import NkValue
+from runtime.values.core import NkValue
 
 class NkStream(NkValue):
 

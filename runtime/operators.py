@@ -1,8 +1,7 @@
 from enum import Enum, auto
 
-class OpTypes:
+class OpTypes(Enum):
     # mirrors operators in tokenizer.tokens.TokenTypes
-
     SUB = auto()
     ADD = auto()
     DIV = auto()
@@ -12,8 +11,8 @@ class OpTypes:
     XOR = auto()
     BW_AND = auto()
     BW_OR = auto()
-    AND = auto()
-    OR = auto()
+    LOGICAL_AND = auto()
+    LOGICAL_OR = auto()
     NEGATE = auto()
     SIZE = auto() 
     EQ = auto()
@@ -23,24 +22,61 @@ class OpTypes:
     LESS = auto()
     GREATER = auto()
 
+def cast(value, target):
 
-class InfixEvaluator:
+    if isinstance(value, target):
+        return value
 
-    def evaluate(optype, *args):
-        # dynamically create the operator function based on the args
-        breakpoint()
-        print(optype.type.name)
-        method_name = optype.name
+    elif target is NkInt:
+        return NkInt(int(value))
 
-        for value in args:
-            method_name += f"_{type(value).__class__.__name__}"
+    elif target is NkFloat:
+        return NkFloat(float(value))
 
-        breakpoint()
+    elif target is NkString:
+        return NkString(str(value))
 
-        method = getattr(InfixEvaluator, method_name)
-        return method(*args)
+    elif target is NkBool:
+        return NkBool(bool(value))
 
+    elif target is NkSet:
+        # TODO
+        raise NotImplementedError()
 
-    # TODO: add all the evaluator functions:
+    elif target is NkList:
+        # TODO
+        raise NotImplementedError()
 
+    elif target is NkNone:
+        return NK_NONE
 
+    elif target is NkNull:
+        return NK_NULL
+
+def promote(lhs, rhs): 
+
+    if lhs.FAMILY != rhs.FAMILY:
+        raise Exception(f"invalid promote with types ({lhs}, {rhs}).")
+
+    target = max(
+        lhs.__class__,
+        rhs.__class__,
+        key=lambda t: t.RANK
+    )
+
+    return cast(lhs, target), cast(rhs, target)
+
+class BinaryEvaluator:
+
+    def evaluate(optype, lhs, rhs):
+
+        try:
+            lhs, rhs = promote(lhs, rhs)
+
+        except TypeError:
+            return # TODO
+
+        method = getattr(lhs, optype.name.lower())
+
+        return method(rhs)
+        

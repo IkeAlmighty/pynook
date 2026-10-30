@@ -1,6 +1,7 @@
-from runtime.values.nkprimitives import NkValue, NkString, NkSpreadArgument, NkArgument, NK_NONE, NK_UNBOUND
+from runtime.values.core import NkValue, NkSpreadArgument, NkArgument, NK_NONE, NK_UNBOUND
 from runtime.values.nkset import NkSet
 from runtime.values.nklist import NkList
+from runtime.values.nkstring import NkString
 import ir.instructions as ir
 
 class NkScope(NkValue):

@@ -79,7 +79,7 @@ class VirtualMachine:
             
     @property
     def frame(self):
-        return self.frames[-1]
+        return self.frames[-1] 
 
     def execute(self, scope, definition):
         frame = Frame(scope, definition)
@@ -327,7 +327,7 @@ class VirtualMachine:
         rhs = self.stack.pop()
         lhs = self.stack.pop()
 
-        result = InfixEvaluator.evaluate(OpTypes.EQUAL, lhs, rhs)
+        result = BinaryEvaluator.evaluate(OpTypes.EQUAL, lhs, rhs)
         self.stack.append(result)
 
     def Return(self, inst):
@@ -380,7 +380,7 @@ class VirtualMachine:
         rhs = self.stack.pop()
         lhs = self.stack.pop()
 
-        result = InfixEvaluator.evaluate(OpTypes.ADD, lhs, rhs)
+        result = BinaryEvaluator.evaluate(OpTypes.ADD, lhs, rhs)
         self.stack.append(result)
 
     def Divide(self, inst): 
@@ -453,12 +453,12 @@ class ThrowCompletion:
             vm.frame.ip = vm.frame.ip + 2 # skipping the original Pop, Jump
             vm.stack.append(self.value) # append Throw value to stack
 
-        else:
+        else: 
             vm.frame.completion = self
             vm.frame.ip = len(
                 vm.frame.definition.instructions
             )
-                        
+
 class ReturnCompletion:
 
     def __init__(self, value):

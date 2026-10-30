@@ -1,4 +1,4 @@
-from runtime.values.nkprimitives import NkValue, NkId
+from runtime.values.core import NkValue, NkId
 
 class NkSet(NkValue):
 
