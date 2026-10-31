@@ -420,7 +420,7 @@ class VirtualMachine:
         rhs = self.stack.pop()
         lhs = self.stack.pop()
 
-        result = InfixEvaluator.evaluate(OpTypes.LESS, lhs, rhs)
+        result = BinaryEvaluator.evaluate(OpTypes.LESS, lhs, rhs)
         self.stack.append(result)
 
     def GreaterThan(self, inst): 

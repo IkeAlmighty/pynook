@@ -16,6 +16,12 @@ class NkBool(NkValue):
             return NK_TRUE
 
         return NK_FALSE
+
+    def add(self, rhs):
+        if rhs.value == True or self.value == True:
+            return NK_TRUE
+        else:
+            return NK_FALSE
             
 NK_FALSE = NkBool('false')
 NK_TRUE = NkBool('true')

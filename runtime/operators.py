@@ -1,5 +1,9 @@
 from enum import Enum, auto
 
+class TypeFamily(Enum):
+    NUMERIC = auto()
+    COLLECTION = auto()
+
 class OpTypes(Enum):
     # mirrors operators in tokenizer.tokens.TokenTypes
     SUB = auto()
@@ -74,7 +78,7 @@ class BinaryEvaluator:
             lhs, rhs = promote(lhs, rhs)
 
         except TypeError:
-            return # TODO
+            raise TypeError(f"Cannot promote {lhs}, {rhs} for {optype}")
 
         method = getattr(lhs, optype.name.lower())
 
