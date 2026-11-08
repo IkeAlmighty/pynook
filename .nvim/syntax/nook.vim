@@ -6,7 +6,7 @@ syntax keyword nookeKeyword if elif else while do for in switch try catch finall
 
 syntax keyword nookeKeywordSecondary continue return collect leave ignore
 syntax keyword nookeProperties __scope__ __name__ __file__ __collection__ root
-syntax keyword nookeCore import print stdio stderr stdin type int float boolean string
+syntax keyword nookeCore import print stdio stderr stdin type int float boolean string supports bind
 
 syntax match nookeIdentifierColon /\<[a-zA-Z_][a-zA-Z0-9_]*\>:/ 
 
@@ -50,4 +50,4 @@ highlight nookeBrace guifg=#89DCEB
 
 highlight nookeIdentifierColon guifg=#E0AF68 gui=bold
 
-let b:current_syntax = "nooke"
+let b:current_syntax = "nook"
