@@ -78,6 +78,10 @@ class NkScope(NkValue):
         raise Exception(f"{name} cannot be resolved")
 
     def resolve_local(self, name):
+        # TODO: If the local is the name of a standard library scope extension,
+        # then resolve the wrapper that assigns the first parameter to this object:
+
+        # else, resolve like normal:
         if name in self.members:
             return self.members[name]
 
