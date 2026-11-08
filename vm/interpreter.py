@@ -327,7 +327,7 @@ class VirtualMachine:
         rhs = self.stack.pop()
         lhs = self.stack.pop()
 
-        result = BinaryEvaluator.evaluate(OpTypes.EQUAL, lhs, rhs)
+        result = BinaryEvaluator.evaluate(OpTypes.EQ, lhs, rhs)
         self.stack.append(result)
 
     def Return(self, inst):

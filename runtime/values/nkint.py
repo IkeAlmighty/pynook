@@ -3,8 +3,10 @@ from runtime.operators import TypeFamily
 from runtime.values.nkbool import NK_TRUE, NK_FALSE
 
 class NkInt(NkValue): 
+
     TYPE_ID = "882b5545-cb21-4875-94ac-134ab8e055e5"
-    FAMILY = TypeFamily.NUMERIC
+    FAMILY = { TypeFamily.NUMERIC, TypeFamily.STRING }
+    RANK = 20
 
     def __init__(self, value):
         super().__init__()
@@ -19,4 +21,10 @@ class NkInt(NkValue):
     def add(self, rhs):
         return NkInt(self.value + rhs.value)
 
+
+    def less(self, rhs):
+        if self.value < rhs.value:
+            return NK_TRUE
+
+        return NK_FALSE
     

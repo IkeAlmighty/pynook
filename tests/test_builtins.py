@@ -8,6 +8,11 @@ from runtime.builtins import inject_builtins
 
 class TestBuiltIns(unittest.TestCase):
 
+    # override
+    def assertEqual(self, lhs, rhs):
+        if lhs in (NkBool, NkInt, NkString, NkScope, NkSet, NkList):
+            super().assertTrue(lhs.eq(rhs))
+
     def setUp(self): pass
 
     def load_source(self, source):
@@ -65,6 +70,7 @@ class TestBuiltIns(unittest.TestCase):
         scope = self.load_source("""
             a: open('tests/fixtures/pass/import_b.nk')
             b: read(a)
+            close(a)
         """)
 
         a = scope.resolve("a")

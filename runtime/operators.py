@@ -3,6 +3,7 @@ from enum import Enum, auto
 class TypeFamily(Enum):
     NUMERIC = auto()
     COLLECTION = auto()
+    STRING = auto()
 
 class OpTypes(Enum):
     # mirrors operators in tokenizer.tokens.TokenTypes
@@ -59,7 +60,8 @@ def cast(value, target):
 
 def promote(lhs, rhs): 
 
-    if lhs.FAMILY != rhs.FAMILY:
+    fam_union = lhs.FAMILY.union(rhs.FAMILY)
+    if len(fam_union) < 1:
         raise Exception(f"invalid promote with types ({lhs}, {rhs}).")
 
     target = max(

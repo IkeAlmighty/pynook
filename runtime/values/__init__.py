@@ -6,4 +6,4 @@ from runtime.values.nkstream import NkStream
 from runtime.values.nkstring import NkString
 from runtime.values.nkint import NkInt
 from runtime.values.nkfloat import NkFloat
-from runtime.values.nkbool import NkBool
+from runtime.values.nkbool import NkBool, NK_FALSE, NK_TRUE

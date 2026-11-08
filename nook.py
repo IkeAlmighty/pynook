@@ -3,7 +3,7 @@ import os
 from tokenizer import Tokenizer
 from parser import Parser
 from ir.builder import IRBuilder
-from vm.interpreter import VirtualMachine
+from vm.interpreter import VirtualMachine, ThrowCompletion
 from runtime.values import NkScope, NkList, NkString
 from runtime.builtins import inject_builtins, BuiltIns
 

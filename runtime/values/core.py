@@ -4,7 +4,7 @@ from runtime.operators import BinaryEvaluator, OpTypes
 class NkValue: 
 
     TYPE_ID = None
-    FAMILY = None
+    FAMILY = {}
     RANK = -1
 
     members = {}
@@ -19,6 +19,17 @@ class NkValue:
             return self.TYPE_ID
 
         return self.members.get(name, NK_NONE)
+
+    def __repr__(self):
+        typename = type(self).__name__
+        if self.value:
+            return f"{typename}('{self.value}')"
+        elif self.items:
+            return f"{typename}('{self.items}')"
+        elif self.members:
+            return f"{typename}('{self.members}')"
+        else:
+            return f"{typename}"
 
     ########### UNARY ###################
     ###################################
