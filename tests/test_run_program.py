@@ -19,7 +19,7 @@ class TestRunProgram(unittest.TestCase):
         """, "arg1", "arg2")
         
         e = scope.resolve("e")
-        self.assertEqual(e, NkList(["arg1", "arg2"]))
+        self.assertEqual(e, NkList([NkString("arg1"), NkString("arg2")]))
 
     def test_stdlib_compilation(self):
 
