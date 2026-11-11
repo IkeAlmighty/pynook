@@ -1,6 +1,6 @@
 import unittest
 from ir.builder import IRBuilder, COLLECT_DEST, RETURN_DEST, LEAVE_DEST
-from vm.interpreter import VirtualMachine
+from vm.interpreter import VirtualMachine, ThrowCompletion
 from tokenizer import Tokenizer
 from parser import Parser
 from runtime.values import *
@@ -34,7 +34,10 @@ class TestIntegration(unittest.TestCase):
             name='__builtins__'
         )
 
-        vm.execute(builtins_scope, ir)
+        completion = vm.execute(builtins_scope, ir)
+        
+        if isinstance(completion, ThrowCompletion):
+            raise Exception(completion.value)
 
         file_scope = vm.stack.pop()
         file_scope.set_as_file_scope()
@@ -438,3 +441,9 @@ class TestIntegration(unittest.TestCase):
         self.assertTrue(b.eq(NkInt(12)))
 
 
+    def test_exception(self):
+        with self.assertRaises(Exception) as e:
+            self.load_source("""
+                a: [0, 1, 2]
+                b: a[4]
+            """)

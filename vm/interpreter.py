@@ -4,6 +4,7 @@ from ir.builder import RETURN_DEST, LEAVE_DEST, CONTINUE_DEST, COLLECT_DEST, PRO
 from runtime.operators import OpTypes
 from runtime.builtins import create_builtin
 from runtime.values import *
+from runtime.exceptions import NkRuntimeException
 
 class VirtualMachine:
 
@@ -39,7 +40,17 @@ class VirtualMachine:
             LessThan: self.LessThan
         }
 
-        
+    def throw_runtime_exception(self, throw_value):
+
+        # set the completion status:
+        self.frame.completion = ThrowCompletion(throw_value)
+
+        # jump to end of this stack's instruction list:
+        self.frame.ip = len(
+            self.frame.definition.instructions
+        )
+
+
     def materialize(self, constant):
         type_name = constant.type_name
         value = constant.value
@@ -90,7 +101,23 @@ class VirtualMachine:
         while frame.ip < len(instructions):
             instruction = instructions[frame.ip]
             frame.ip += 1
-            self.ins_lookup[type(instruction)](instruction)
+
+            try: 
+                self.ins_lookup[type(instruction)](instruction)
+
+            except NkRuntimeException as e:
+
+                # construct a NkScope and throw it:
+                self.throw_runtime_exception(
+                    NkRuntimeException.create_nk_value(
+                        e.exc_type,
+                        message=NkString(e.message)
+                    )
+                )
+
+            except Exception as e:
+                # VM bug:
+                raise
 
         # first, promote any resolvable members in this
         # frame's scope to their owners:
@@ -173,6 +200,12 @@ class VirtualMachine:
         if isinstance(key, NkInt):
             if not isinstance(owner, NkList) and not isinstance(owner, NkSet):
                 raise Exception("integer subsriptions are only valid on sets and lists")
+
+            if key.value > len(owner.items) - 1:
+                raise NkRuntimeException(
+                    "IndexError", 
+                    f"index {key.value} is out of range for {owner}"
+                )
 
             member = owner.items[key.value]
             self.stack.append(member)
@@ -354,15 +387,8 @@ class VirtualMachine:
 
     def Throw(self, inst):
         throw_value = self.stack.pop()
-
-        # set the completion status:
-        self.frame.completion = ThrowCompletion(throw_value)
-
-        # jump to end of this stack's instruction list:
-        self.frame.ip = len(
-            self.frame.definition.instructions
-        )
-
+        self.throw_runtime_exception(throw_value)
+        
     def Leave(self, inst):
 
         # set the completion status:
