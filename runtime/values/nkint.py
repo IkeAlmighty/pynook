@@ -4,13 +4,16 @@ from runtime.values.nkbool import NK_TRUE, NK_FALSE
 
 class NkInt(NkValue): 
 
-    TYPE_ID = "882b5545-cb21-4875-94ac-134ab8e055e5"
+    TYPE_ID = NkId("882b5545-cb21-4875-94ac-134ab8e055e5")
     FAMILY = { TypeFamily.NUMERIC, TypeFamily.STRING }
     RANK = 20
 
     def __init__(self, value):
         super().__init__()
         self.value = value
+
+    def __repr__(self):
+        return f"NkInt('{self.value}')"
 
     def eq(self, rhs):
         if self.value == rhs.value:

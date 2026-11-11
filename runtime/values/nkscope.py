@@ -1,11 +1,16 @@
-from runtime.values.core import NkValue, NkSpreadArgument, NkArgument, NK_NONE, NK_UNBOUND
+from runtime.values.core import NkValue, NkSpreadArgument, NkArgument, NK_NONE, NK_UNBOUND, NkId
 from runtime.values.nkset import NkSet
 from runtime.values.nklist import NkList
 from runtime.values.nkstring import NkString
 import ir.instructions as ir
 
+import uuid
+
 class NkScope(NkValue):
     
+    def __repr__(self):
+        return f"NkScope({self.members})"
+
     def __init__(
         self, 
         parent=None, 
@@ -52,6 +57,9 @@ class NkScope(NkValue):
 
         if self.is_file_scope: 
             self.set_as_file_scope()
+
+        # FIXME: this causes problems, dont' know why yet.
+        # self.members["__typeid__"] = NkId(str(uuid.uuid4()))
 
     def set_as_file_scope(self):
         self.members["__file__"] = self

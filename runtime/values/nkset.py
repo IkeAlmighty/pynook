@@ -5,7 +5,7 @@ class NkSet(NkValue):
     def __init__(self, items):
         self.items = []
         self.members = {
-            "__id__": NkId("c0e0630b-6ef9-4e0b-b2be-2b96079a7cdb")
+            "__typeid__": NkId("c0e0630b-6ef9-4e0b-b2be-2b96079a7cdb")
         }
 
         for item in items:

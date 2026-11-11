@@ -10,7 +10,7 @@ class NkValue:
     members = {}
     
     def resolve_local(self, name):
-        if name == "__id__":
+        if name == "__typeid__":
             if self.TYPE_ID is None:
                 raise Exception(
                     f"{type(self).__name__} missing TYPE_ID"
@@ -21,16 +21,8 @@ class NkValue:
         return self.members.get(name, NK_NONE)
 
     def __repr__(self):
-        typename = type(self).__name__
-        if self.value:
-            return f"{typename}('{self.value}')"
-        elif self.items:
-            return f"{typename}('{self.items}')"
-        elif self.members:
-            return f"{typename}('{self.members}')"
-        else:
-            return f"{typename}"
-
+        raise NotImplementedError(f"{type(self)} does not implement __repr__")
+        
     ########### UNARY ###################
     ###################################
 

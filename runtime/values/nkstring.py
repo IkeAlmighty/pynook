@@ -5,13 +5,15 @@ from runtime.values.nkbool import NK_FALSE, NK_TRUE
 
 class NkString(NkValue):
 
-    TYPE_ID = "3ef3cea1-608c-4487-8ceb-ebd362f6c4f3"
+    TYPE_ID = NkId("3ef3cea1-608c-4487-8ceb-ebd362f6c4f3")
     RANK = 50
     FAMILY = { TypeFamily.STRING }
 
     def __init__(self, value):
         self.value = value
 
+    def __repr__(self):
+        return f"NkString('{self.value}')"
 
     def eq(self, rhs):
         if self.value == rhs.value:

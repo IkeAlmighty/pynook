@@ -13,6 +13,9 @@ class NkBool(NkValue):
         elif value == 'false': self.value = False
         else: raise Exception(f"Invalid NkBool value {value}")
 
+    def __repr__(self):
+        return f"NkBool('{self.value}')"
+
     def eq(self, rhs):
         if rhs.value == lhs.value: 
             return NK_TRUE
