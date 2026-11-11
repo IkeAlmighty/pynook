@@ -2,6 +2,7 @@ from runtime.values.core import NkValue, NkSpreadArgument, NkArgument, NK_NONE, 
 from runtime.values.nkset import NkSet
 from runtime.values.nklist import NkList
 from runtime.values.nkstring import NkString
+from runtime.values.nkbool import NK_FALSE, NK_TRUE
 import ir.instructions as ir
 
 import uuid
@@ -83,7 +84,10 @@ class NkScope(NkValue):
             
             curr = curr.parent
 
-        raise Exception(f"{name} cannot be resolved")
+        raise NkRuntimeException(
+            "MissingMemberError",
+            f"{name} cannot be resolved"
+        )
 
     def resolve_local(self, name):
         # TODO: If the local is the name of a standard library scope extension,
@@ -110,7 +114,10 @@ class NkScope(NkValue):
 
     def assign(self, name, value):
         if name in self.reserved_names:
-            raise Exception(f"{name} is a reserved name, cannot assign {value} to it")
+            raise NkRuntimeException(
+                "ReservedMemberError",
+                f"{name} is a reserved name, cannot assign {value} to it"
+            )
 
         self.members[name] = value
 
@@ -190,7 +197,10 @@ class NkScope(NkValue):
         # validate that the correct number of arguments was given:
         if boundary > len(parameters):
             # TODO: needs fixed to account for spread parameters
-            raise Exception(f"too many arguments for call to {self.name}")
+            raise NkRuntimeException(
+                "ArgumentBindingError",
+                f"too many arguments for call to {self.name}"
+            )
 
         # map unbound arguments onto parameters in order:
         parameter_names = list(parameters.keys())
@@ -200,10 +210,16 @@ class NkScope(NkValue):
         # map bind_to arguments to their correct binding:
         for argument in arguments[boundary:]:
             if argument.bind_to in bindings:
-                raise Exception(f"parameter {argument.bind_to} supplied twice.")
+                raise NkRuntimeException(
+                    "ArgumentBindingError",
+                    f"parameter {argument.bind_to} supplied twice."
+                )
 
             if argument.bind_to not in parameters:
-                raise Exception(f"{self.name} has no parameter named {argument.bind_to}")
+                raise NkRuntimeException(
+                    "ArgumentBindingError",
+                    f"{self.name} has no parameter named {argument.bind_to}"
+                )
 
             bindings[argument.bind_to] = argument.value
         
@@ -224,15 +240,24 @@ class NkScope(NkValue):
         for arg in named_partition:
 
             if isinstance(arg, NkSpreadArgument):
-                raise Exception("Argument spreads must be the last element before named arguments")
+                raise NkRuntimeException(
+                    "ArgumentBindingError",
+                    "Argument spreads must be the last element before named arguments"
+                )
 
             if arg.bind_to is NK_UNBOUND:
-                raise Exception("unnamed arguments must come before named arguments")
+                raise NkRuntimeException(
+                    "ArgumentBindingError",
+                    "unnamed arguments must come before named arguments"
+                )
 
     def __validate_spread_position(self, arguments):
         for arg in arguments[:-1]:
             if isinstance(arg, NkSpreadArgument):
-                raise Exception("Argument spreads must be the last element before named arguments")
+                raise NkRuntimeException(
+                    "ArgumentBindingError",
+                    "Argument spreads must be the last element before named arguments"
+                )
 
     def __expand_spread_argument(self, arguments, boundary):
         if boundary == 0: return arguments, boundary
@@ -265,3 +290,11 @@ class NkScope(NkValue):
             else: #NkScope:
                 obj.assign(name, value)
  
+
+    def eq(self, rhs):
+        # TODO: decide how scope equality works instead of using python equality
+
+        if self.members == rhs.members:
+            return NK_TRUE
+
+        return NK_FALSE

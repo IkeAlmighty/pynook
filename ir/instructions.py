@@ -85,6 +85,9 @@ class Leave(Instruction): pass
 @dataclass 
 class Throw(Instruction): pass
 
+@dataclass
+class LoadLength(Instruction): pass
+
 #####################################################
 ############### Binary Op Instructions ##############
 #####################################################

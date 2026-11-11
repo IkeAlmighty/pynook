@@ -30,4 +30,10 @@ class NkInt(NkValue):
             return NK_TRUE
 
         return NK_FALSE
+
+    def greater(self, rhs):
+        if self.value > rhs.value:
+            return NK_TRUE
+
+        return NK_FALSE
     

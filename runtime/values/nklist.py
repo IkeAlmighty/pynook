@@ -1,4 +1,5 @@
 from runtime.values.core import NkValue, NkId
+from runtime.values.nkbool import NK_FALSE, NK_TRUE
 
 class NkList(NkValue):
 
@@ -10,6 +11,20 @@ class NkList(NkValue):
    
     def __repr__(self):
         return f"NkList{self.items}"
+
+    def contains(self, item):
+        for a in self.items:
+            if a.eq(item) == NK_TRUE:
+                return NK_TRUE
+
+        return NK_FALSE
+
+    def eq(self, rhs):
+        for a, b in zip(self.items, rhs.items):
+            if a.eq(b) == NK_FALSE:
+                return NK_FALSE
+
+        return NK_TRUE
 
     def collect_to(self, obj):
         for item in self.items:

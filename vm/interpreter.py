@@ -1,10 +1,22 @@
 from __future__ import annotations
 from ir.instructions import *
-from ir.builder import RETURN_DEST, LEAVE_DEST, CONTINUE_DEST, COLLECT_DEST, PROMOTE_SHADOWS, THROW_DEST
+from ir.builder import PROMOTE_SHADOWS 
 from runtime.operators import OpTypes
 from runtime.builtins import create_builtin
 from runtime.values import *
 from runtime.exceptions import NkRuntimeException
+from vm.completions import ThrowCompletion, ReturnCompletion, CollectCompletion, LeaveCompletion, ContinueCompletion, NormalCompletion
+import vm.deserializer as deserializer
+
+class Frame:
+
+    def __init__(self, scope, definition):
+        self.scope = scope
+        self.definition = definition
+        self.ip = 0
+
+        self.completion = NormalCompletion()
+        self.control_types = definition.control_types or []
 
 class VirtualMachine:
 
@@ -17,6 +29,7 @@ class VirtualMachine:
             Load: self.Load,
             LoadMember: self.LoadMember,
             LoadSlice: self.LoadSlice,
+            LoadLength: self.LoadLength,
             Store: self.Store,
             StoreMember: self.StoreMember,
             PushConst: self.PushConst,
@@ -37,7 +50,8 @@ class VirtualMachine:
             JumpIfFalse: self.JumpIfFalse,
             Jump: self.Jump,
             Add: self.Add,
-            LessThan: self.LessThan
+            LessThan: self.LessThan,
+            GreaterThan: self.GreaterThan
         }
 
     def throw_runtime_exception(self, throw_value):
@@ -50,44 +64,15 @@ class VirtualMachine:
             self.frame.definition.instructions
         )
 
+    def create_exception(exc_type, message):
 
-    def materialize(self, constant):
-        type_name = constant.type_name
-        value = constant.value
+        nkscope = NkScope(parent=self.frame.scope)
+        
+        nkscope.assign("message", NkString(message))
+        nkscope.assign("type", NkString(exc_type))
 
-        if type_name == "int": 
-            return NkInt(int(value))
-            
-        elif type_name == "string": 
-            return NkString(str(value))
-            
-        elif type_name == "float": 
-            return NkFloat(float(value))
-            
-        elif type_name == "boolean": 
-            return NkBool(value)
-            
-        elif type_name == "hexadecimal": 
-            return NkInt(int(value))
-            
-        elif type_name == "binary": 
-            return NkInt(int(value))
-            
-        elif type_name == "none": 
-            return NK_NONE
-            
-        elif type_name == "null": 
-            return NK_NULL
-            
-        elif type_name == "unbound": 
-            return NK_UNBOUND
+        return nkscope
 
-        elif type_name == "collectall":
-            return NK_COLLECT_ALL
-
-        else:
-            raise Exception(f"no materialize branch for {type_name}")
-            
     @property
     def frame(self):
         return self.frames[-1] 
@@ -109,7 +94,7 @@ class VirtualMachine:
 
                 # construct a NkScope and throw it:
                 self.throw_runtime_exception(
-                    NkRuntimeException.create_nk_value(
+                    self.create_exception(
                         e.exc_type,
                         message=NkString(e.message)
                     )
@@ -143,7 +128,7 @@ class VirtualMachine:
 
     def PushConst(self, inst):
         const = inst.value
-        value = self.materialize(const)
+        value = deserializer.materialize(const)
         self.stack.append(value)
 
     def Pop(self, inst):
@@ -178,7 +163,7 @@ class VirtualMachine:
                 owner.items[key] = value
 
             else:
-                raise Exception(f"cannot index {type(owner)}")
+                raise NkRuntimeException("IndexError", f"cannot index {type(owner)}")
 
     def Load(self, inst):
         """
@@ -199,7 +184,10 @@ class VirtualMachine:
         # for loading list, set items:
         if isinstance(key, NkInt):
             if not isinstance(owner, NkList) and not isinstance(owner, NkSet):
-                raise Exception("integer subsriptions are only valid on sets and lists")
+                raise NkRuntimeException(
+                    "InvalidImplicitType", 
+                    "Integer subscriptions are only valid on sets and lists"
+                )
 
             if key.value > len(owner.items) - 1:
                 raise NkRuntimeException(
@@ -226,7 +214,10 @@ class VirtualMachine:
                     arg_key = NkArgument(key, bind_to=NK_UNBOUND)
                     overload.call(self, NkList([arg_key]))
             else: 
-                raise Exception(f"{owner.name} has no member {key.value}")
+                raise NkRuntimeException(
+                    "MissingMemberError",
+                    f"{owner.name} has no member {key.value}"
+                )
                 
     def LoadSlice(self, inst):
         end = self.stack.pop()
@@ -234,13 +225,33 @@ class VirtualMachine:
         value = self.stack.pop()
 
         if not isinstance(value, NkList):
-            raise Exception(f"{value} is not a list")
+            raise NkRuntimeException(
+                "TypeError",
+                f"{value} is not a list"
+            )
         
         start = (start.value if start is not NK_NONE else None)
         end = (end.value if end is not NK_NONE else None)
         items = value.items[start:end]
 
         self.stack.append(NkList(items))
+
+    def LoadLength(self, inst):
+        obj = self.stack.pop()
+        
+        if isinstance(obj, (NkList, NkSet)):
+            length = NkInt(len(obj.items))
+            self.stack.append(length)
+
+        elif isinstance(obj, NkScope):
+            length = NkInt(len(obj.members))
+            self.stack.append(length)
+
+        else:
+            raise NkRuntimeException(
+                "TypeError",
+                f"Cannot load length value for {obj}. Must be a set, list, or scope."
+            )
 
     def JumpIfFalse(self, inst):
         value = self.stack.pop()
@@ -341,7 +352,10 @@ class VirtualMachine:
     def CreateSpreadArgument(self, inst):
         value = self.stack.pop()
         if not isinstance(value, NkList):
-            raise Exception("spread argument requires a list")
+            raise NkRuntimeException(
+                "SpreadError",
+                f"Cannot spread non-list argument '{value}'"
+            )
 
         spread_argument = NkSpreadArgument(value)
 
@@ -352,7 +366,10 @@ class VirtualMachine:
 
         valid_types = (NkList, NkScope, NkSet)
         if not isinstance(obj, valid_types):
-            raise Exception("invalid spread term, must be a list, scope, or set.")
+            raise NkRuntimeException(
+                "SpreadError",
+                f"Cannot spread term '{obj}'. Must be a set, list, or scope."
+            )
 
         obj.collect_to(self.frame.scope)
 
@@ -399,157 +416,62 @@ class VirtualMachine:
             self.frame.definition.instructions
         )
 
+    #############################################
+    ############ Binary Operations ##############
+    #############################################
+    
+    # helper:
+    def run_binary_operation(self, optype):
+        rhs = self.stack.pop()
+        lhs = self.stack.pop()
+
+        result = BinaryEvaluator.evaluate(optype, lhs, rhs)
+        self.stack.append(result)
+
+
+    ######################
+
     def Subtract(self, inst): 
-        raise NotImplementedError()
+        self.run_binary_operation(OpTypes.SUB)
 
     def Add(self, inst): 
-        rhs = self.stack.pop()
-        lhs = self.stack.pop()
-
-        result = BinaryEvaluator.evaluate(OpTypes.ADD, lhs, rhs)
-        self.stack.append(result)
-
+        self.run_binary_operation(OpTypes.ADD)
+        
     def Divide(self, inst): 
-        raise NotImplementedError()
+        self.run_binary_operation(OpTypes.DIV)
 
     def Multiply(self, inst): 
-        raise NotImplementedError()
+        self.run_binary_operation(OpTypes.MULT)
 
     def Exponent(self, inst): 
-        raise NotImplementedError()
+        self.run_binary_operation(OpTypes.EXPONENT)
 
     def Modulo(self, inst): 
-        raise NotImplementedError()
+        self.run_binary_operation(OpTypes.MODULO)
 
     def Xor(self, inst): 
-        raise NotImplementedError()
+        self.run_binary_operation(OpTypes.XOR)
 
     def BwAnd(self, inst): 
-        raise NotImplementedError()
+        self.run_binary_operation(OpTypes.BW_AND)
 
     def BwOr(self, inst): 
-        raise NotImplementedError()
+        self.run_binary_operation(OpTypes.BW_OR)
 
     def And(self, inst): 
-        raise NotImplementedError()
+        self.run_binary_operation(OpTypes.LOGICAL_AND)
 
     def Or(self, inst): 
-        raise NotImplementedError()
+        self.run_binary_operation(OpTypes.LOGICAL_OR)
 
     def GreaterThanOrEqual(self, inst): 
-        raise NotImplementedError()
+        self.run_binary_operation(OpTypes.GREATER_EQ)
 
     def LessThanOrEqual(self, inst): 
-        raise NotImplementedError()
+        self.run_binary_operation(OpTypes.LESS_EQ)
 
     def LessThan(self, inst): 
-        rhs = self.stack.pop()
-        lhs = self.stack.pop()
-
-        result = BinaryEvaluator.evaluate(OpTypes.LESS, lhs, rhs)
-        self.stack.append(result)
+        self.run_binary_operation(OpTypes.LESS)
 
     def GreaterThan(self, inst): 
-        raise NotImplementedError()
-
-
-##########################################
-############ Helper Classes ##############
-##########################################
-
-class Frame:
-
-    def __init__(self, scope, definition):
-        self.scope = scope
-        self.definition = definition
-        self.ip = 0
-
-        self.completion = NormalCompletion()
-        self.control_types = definition.control_types or []
-
-class ThrowCompletion:
-    
-    def __init__(self, value):
-        self.value = value
-
-    def apply(self, vm):
-        if THROW_DEST in vm.frame.control_types:
-            # skip over the catch jump instruction:
-            # (has to skip the Pop for the try as well as the Jump)
-            vm.frame.ip = vm.frame.ip + 2 # skipping the original Pop, Jump
-            vm.stack.append(self.value) # append Throw value to stack
-
-        else: 
-            vm.frame.completion = self
-            vm.frame.ip = len(
-                vm.frame.definition.instructions
-            )
-
-class ReturnCompletion:
-
-    def __init__(self, value):
-        self.value = value
-
-    def apply(self, vm):
-        if RETURN_DEST not in vm.frame.control_types:
-            vm.frame.completion = self
-
-            vm.frame.ip = len(
-                vm.frame.definition.instructions
-            )
-
-        else:
-            vm.stack.append(self.value)
-
-class CollectCompletion:
-
-    def __init__(self, value, scope):
-        self.value = value
-        self.scope = scope
-
-    def apply(self, vm):
-
-        if COLLECT_DEST not in vm.frame.control_types:
-            vm.frame.completion = self
-
-            vm.frame.ip = len(
-                vm.frame.definition.instructions
-            )
-
-        else:
-            if self.value == NK_COLLECT_ALL:
-                vm.stack.append(NK_NONE)
-
-                # promote all members:
-                for name in self.scope.unreserved_members:
-                    owner = vm.frame.scope.resolve_owner(name)
-                    if owner:
-                        owner.assign(name, self.scope.resolve(name))
-            else:
-                vm.stack.append(self.value)
-
-
-class LeaveCompletion:
-
-    def apply(self, vm):
-        if LEAVE_DEST not in vm.frame.control_types:
-            vm.frame.completion = self
-
-            vm.frame.ip = len(
-                vm.frame.definition.instructions
-            )
-
-class ContinueCompletion: 
-
-    def apply(self, vm):
-        if CONTINUE_DEST not in vm.frame.control_types:
-            vm.frame.completion = self
-
-            vm.frame.ip = len(
-                vm.frame.definition.instructions
-            )
-
-class NormalCompletion: 
-    def apply(self, vm): pass
-
-
+        self.run_binary_operation(OpTypes.GREATER)

@@ -9,8 +9,11 @@ class TestIntegration(unittest.TestCase):
 
     # override
     def assertEqual(self, lhs, rhs):
-        if lhs in (NkBool, NkInt, NkString, NkScope, NkSet, NkList):
+        if type(lhs) in (NkBool, NkInt, NkString, NkScope, NkSet, NkList):
             super().assertTrue(lhs.eq(rhs))
+
+        else:
+            super().assertEqual(lhs, rhs)
 
     def setUp(self): pass
 
@@ -447,3 +450,15 @@ class TestIntegration(unittest.TestCase):
                 a: [0, 1, 2]
                 b: a[4]
             """)
+
+    def test_forin(self):
+        scope = self.load_source("""
+            a: [1, 3, 5]
+            b: 0
+            for i in a {
+                b: b + i
+            }
+        """)
+
+        b = scope.resolve("b")
+        self.assertEqual(b, NkInt(9))

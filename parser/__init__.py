@@ -180,6 +180,7 @@ class Parser:
     def _list(self):
         self._eat(TokenTypes.LBRACKET)
 
+        items = []
         if self.curr_token.type != TokenTypes.RBRACKET:
             items = self._items()
 

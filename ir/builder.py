@@ -10,6 +10,12 @@ THROW_DEST = "throw_dest"
 
 PROMOTE_SHADOWS = "promote_shadows"
 
+temp_id = 0
+def next_temp_id():
+    global temp_id
+    temp_id += 1
+    return temp_id
+
 class IRBuilder:
 
     def __init__(self):
@@ -444,7 +450,7 @@ class IRBuilder:
         end_jump = ir.JumpIfFalse(target=None)
         self.emit(end_jump)
 
-        self.control_types_stack.append([CONTINUE_DEST, LEAVE_DEST])
+        self.control_types_stack.append([CONTINUE_DEST, LEAVE_DEST, PROMOTE_SHADOWS])
 
         self.dispatch(node.scope)
         self.dispatch(node.update)
@@ -456,7 +462,89 @@ class IRBuilder:
         self.control_types_stack.pop()
 
     def visit_ForIn(self, node):
-        raise NotImplementedError()
+        # create identifer nodes for the iterable and index:
+        iterable_id = ast.Identifier(
+            value=f"__iterable{next_temp_id()}__",
+            location=node.location
+        )
+
+        index_id = ast.Identifier(
+            value=f"__index{next_temp_id()}__",
+            location=node.location
+        )
+
+        # dispatch the value of the iterable:
+        self.dispatch(node.iterable)
+
+        # store that value in the __iterable__ identifier:
+        self.__emit_store(iterable_id)
+
+        # load the initial index value:
+        self.emit(
+            ir.PushConst(
+                ir.Constant(
+                    type_name="int",
+                    value="0"
+                )
+            )
+        )
+
+        # store the index variable:
+        self.__emit_store(index_id)
+        
+        # mark the beginning of the loop:
+        start_jump = ir.Jump(
+            target = self.curr_inst_length
+        )
+
+        # load the iterable:
+        self.__emit_load(iterable_id)
+
+        # load the length of the iterable:
+        self.emit(ir.LoadLength())
+
+        # load the index:
+        self.__emit_load(index_id)
+
+        # load bool for len(iterable) > index
+        self.emit(ir.GreaterThan())
+
+        # jump to end if bool is false 
+        end_jump = ir.JumpIfFalse(target=None)
+        self.emit(end_jump)
+
+        # load the current element:
+        self.__emit_load(iterable_id)
+        self.__emit_load(index_id)
+        self.emit(ir.LoadMember())
+
+        # store current element in identifier:
+        self.__emit_store(node.identifier)
+
+        # dispatch the scope:
+        self.control_types_stack.append([CONTINUE_DEST, LEAVE_DEST, PROMOTE_SHADOWS])
+        self.dispatch(node.scope)
+
+        # increment index + 1:
+        self.__emit_load(index_id)
+        self.emit(
+            ir.PushConst(
+                ir.Constant(
+                    type_name="int",
+                    value="1"
+                )
+            )
+        )
+        self.emit(ir.Add())
+
+        # store the incremented index:
+        self.__emit_store(index_id)
+        
+        # jump to start:
+        self.emit(start_jump)
+
+        # backpatch end:
+        end_jump.target=self.curr_inst_length
         
     def visit_If(self, node):
         branches = [(node.condition, node.then_scope)]

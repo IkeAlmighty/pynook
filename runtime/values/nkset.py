@@ -1,4 +1,5 @@
 from runtime.values.core import NkValue, NkId
+from runtime.values.nkbool import NK_FALSE, NK_TRUE
 
 class NkSet(NkValue):
 
@@ -11,6 +12,16 @@ class NkSet(NkValue):
         for item in items:
             self.add(item)
 
+    def __repr__(self):
+        return f"NkSet{self.items}"
+
+    def contains(self, item):
+        for a in self.items:
+            if a.eq(item) == NK_TRUE:
+                return NK_TRUE
+
+        return NK_FALSE
+
     def add(self, item):
         for existing_item in self.items:
             if existing_item == item:
@@ -18,8 +29,12 @@ class NkSet(NkValue):
 
         self.items.append(item)
 
-    def __repr__(self):
-        return f"NkSet{self.items}"
+    def eq(self, rhs):
+        for item in rhs.items:
+            if self.contains(item) == NK_FALSE:
+                return NK_FALSE
+
+        return NK_TRUE
 
     def collect_to(self, obj):
         for item in self.items:

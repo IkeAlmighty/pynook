@@ -33,10 +33,10 @@ def handle_uncaught_exception(completion):
             message = value.resolve_local("message")
 
             if message is not NK_NONE:
-                print(message, file=sys.stderr)
+                print('\033[31m', message, '\033[0m', file=sys.stderr)
 
             else: 
-                print(value, file=sys.stderr)
+                print('\033[31m', value, '\033[0m', file=sys.stderr)
 
         else: 
             print(value)
@@ -83,11 +83,13 @@ def run_program(source, *program_args):
 
     return scope
 
-if __name__ == "__main__":
+def main():
     args = sys.argv
 
     if len(args) < 2:
-        raise Exception("missing source file in command line arguments")
+        print("\033[31mmissing source file", file=sys.stderr)
+        print("usage: \033[33m\nnook <filepath.nk>\033[0m", file=sys.stderr)
+        return
 
     if len(args) > 1:
         prog_args = args[2:]
@@ -97,4 +99,5 @@ if __name__ == "__main__":
     with open(path) as file:
         source = file.read()
         run_program(source, *args)
-        
+     
+if __name__ == "__main__": main()

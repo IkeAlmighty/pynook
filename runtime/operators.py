@@ -1,4 +1,5 @@
 from enum import Enum, auto
+from runtime.exceptions import NkRuntimeException
 
 class TypeFamily(Enum):
     NUMERIC = auto()
@@ -62,7 +63,10 @@ def promote(lhs, rhs):
 
     fam_union = lhs.FAMILY.union(rhs.FAMILY)
     if len(fam_union) < 1:
-        raise Exception(f"invalid promote with types ({lhs}, {rhs}).")
+        raise NkRuntimeException(
+            "PromoteError",
+            f"invalid promote with types ({lhs}, {rhs})."
+        )
 
     target = max(
         lhs.__class__,

@@ -55,7 +55,7 @@ class Ignore(Statement):
 @dataclass
 class Identifier(Expr):
     value: str
-    location: Location
+    location: Location = None
 
 @dataclass
 class Catch(Node):
@@ -123,9 +123,9 @@ class For(Statement):
 @dataclass
 class ForIn(Statement):
     identifier: Identifier
-    enumerated: Expr
+    iterable: Expr
     scope: Scope
-    location: Location
+    location: Location = None
 
 @dataclass
 class If(Statement):
