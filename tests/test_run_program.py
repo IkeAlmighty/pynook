@@ -1,8 +1,13 @@
 import unittest
-from runtime.values import NkList, NkFloat
+from runtime.values import *
 from nook import run_program
 
 class TestRunProgram(unittest.TestCase):
+
+    # override
+    def assertEqual(self, lhs, rhs):
+        if lhs in (NkBool, NkInt, NkString, NkScope, NkSet, NkList):
+            super().assertTrue(lhs.eq(rhs))
 
     def test_args(self):
         scope = run_program("""

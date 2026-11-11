@@ -7,6 +7,11 @@ from runtime.values import *
 
 class TestIntegration(unittest.TestCase):
 
+    # override
+    def assertEqual(self, lhs, rhs):
+        if lhs in (NkBool, NkInt, NkString, NkScope, NkSet, NkList):
+            super().assertTrue(lhs.eq(rhs))
+
     def setUp(self): pass
 
     def load_source(self, source):
@@ -419,3 +424,17 @@ class TestIntegration(unittest.TestCase):
         self.assertEqual(b, NkString("foo"))
         self.assertEqual(foo_a, NkString("foo"))
         
+
+    def test_operators(self):
+        scope = self.load_source("""
+            a: 5 + 6
+            b: a + 1
+        """)
+
+        a = scope.resolve("a")
+        b = scope.resolve("b")
+
+        self.assertTrue(a.eq(NkInt(11)))
+        self.assertTrue(b.eq(NkInt(12)))
+
+

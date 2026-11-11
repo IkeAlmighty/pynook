@@ -1,8 +1,9 @@
 from __future__ import annotations
 from ir.instructions import *
-from runtime.values import *
-from runtime.builtins import create_builtin
 from ir.builder import RETURN_DEST, LEAVE_DEST, CONTINUE_DEST, COLLECT_DEST, PROMOTE_SHADOWS, THROW_DEST
+from runtime.operators import OpTypes
+from runtime.builtins import create_builtin
+from runtime.values import *
 
 class VirtualMachine:
 
@@ -78,7 +79,7 @@ class VirtualMachine:
             
     @property
     def frame(self):
-        return self.frames[-1]
+        return self.frames[-1] 
 
     def execute(self, scope, definition):
         frame = Frame(scope, definition)
@@ -326,10 +327,8 @@ class VirtualMachine:
         rhs = self.stack.pop()
         lhs = self.stack.pop()
 
-        if rhs == lhs:
-            self.stack.append(NK_TRUE)
-        else:
-            self.stack.append(NK_FALSE)
+        result = BinaryEvaluator.evaluate(OpTypes.EQ, lhs, rhs)
+        self.stack.append(result)
 
     def Return(self, inst):
         return_value = self.stack.pop()
@@ -381,9 +380,8 @@ class VirtualMachine:
         rhs = self.stack.pop()
         lhs = self.stack.pop()
 
-        self.stack.append(
-            lhs.add(rhs)
-        )
+        result = BinaryEvaluator.evaluate(OpTypes.ADD, lhs, rhs)
+        self.stack.append(result)
 
     def Divide(self, inst): 
         raise NotImplementedError()
@@ -422,7 +420,8 @@ class VirtualMachine:
         rhs = self.stack.pop()
         lhs = self.stack.pop()
 
-        self.stack.append(lhs.less_than(rhs))
+        result = BinaryEvaluator.evaluate(OpTypes.LESS, lhs, rhs)
+        self.stack.append(result)
 
     def GreaterThan(self, inst): 
         raise NotImplementedError()
@@ -454,12 +453,12 @@ class ThrowCompletion:
             vm.frame.ip = vm.frame.ip + 2 # skipping the original Pop, Jump
             vm.stack.append(self.value) # append Throw value to stack
 
-        else:
+        else: 
             vm.frame.completion = self
             vm.frame.ip = len(
                 vm.frame.definition.instructions
             )
-                        
+
 class ReturnCompletion:
 
     def __init__(self, value):

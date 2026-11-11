@@ -3,7 +3,7 @@ import os
 from tokenizer import Tokenizer
 from parser import Parser
 from ir.builder import IRBuilder
-from vm.interpreter import VirtualMachine
+from vm.interpreter import VirtualMachine, ThrowCompletion
 from runtime.values import NkScope, NkList, NkString
 from runtime.builtins import inject_builtins, BuiltIns
 
@@ -23,6 +23,25 @@ def compile_stdlib():
     ir = ir_builder.build(ast)
 
     return ir
+
+def handle_uncaught_exception(completion):
+    # handle uncaught exceptions:
+    if isinstance(completion, ThrowCompletion):
+        value = completion.value
+
+        if isinstance(value, NkScope):
+            message = value.resolve_local("message")
+
+            if message is not NK_NONE:
+                print(message, file=sys.stderr)
+
+            else: 
+                print(value, file=sys.stderr)
+
+        else: 
+            print(value)
+
+        exit(-1)
 
 def run_program(source, *program_args):
     tokenizer = Tokenizer(source)
@@ -51,16 +70,23 @@ def run_program(source, *program_args):
     # compile and inject the standard library:
     stdlib_ir = compile_stdlib()
 
-    vm.execute(builtins_scope, ir)
+    # execute the standard lib:
+    completion = vm.execute(builtins_scope, stdlib_ir)
+    handle_uncaught_exception(completion)
+
+    # execute the program:
+    completion = vm.execute(builtins_scope, ir)
+    handle_uncaught_exception(completion)
+    
+    # grab the top level scope:
     scope = vm.stack.pop()
 
-    vm.execute(builtins_scope, stdlib_ir)
     return scope
 
 if __name__ == "__main__":
     args = sys.argv
 
-    if len(args) < 1:
+    if len(args) < 2:
         raise Exception("missing source file in command line arguments")
 
     if len(args) > 1:

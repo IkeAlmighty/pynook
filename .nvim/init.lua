@@ -1,6 +1,6 @@
 vim.filetype.add({
   extension = {
-    nk = "nooke",
+    nk = "nook",
   },
 })
 
