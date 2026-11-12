@@ -64,7 +64,7 @@ class VirtualMachine:
             self.frame.definition.instructions
         )
 
-    def create_exception(exc_type, message):
+    def create_exception(self, exc_type, message):
 
         nkscope = NkScope(parent=self.frame.scope)
         
@@ -96,7 +96,7 @@ class VirtualMachine:
                 self.throw_runtime_exception(
                     self.create_exception(
                         e.exc_type,
-                        message=NkString(e.message)
+                        message=e.message
                     )
                 )
 
@@ -147,12 +147,15 @@ class VirtualMachine:
         owner = self.stack.pop()
         value = self.stack.pop()
 
-        if isinstance(value, NkScope):
-            # assign name if the value doesn't have one
-            if value.name is None:
-                value.name = inst.name
+        if owner == NK_NONE:
+            raise NkRuntimeException(
+                "AssignmentError",
+                f"Cannot assign value to None"
+            )
 
-            value.aliases.add(inst.name)
+        # assign an alias if it is a scope:
+        if isinstance(value, NkScope):
+            value.aliases.add(key)
         
         if isinstance(key, NkString):
             owner.assign(key.value, value)

@@ -3,6 +3,7 @@ from runtime.values.nkset import NkSet
 from runtime.values.nklist import NkList
 from runtime.values.nkstring import NkString
 from runtime.values.nkbool import NK_FALSE, NK_TRUE
+from runtime.exceptions import NkRuntimeException
 import ir.instructions as ir
 
 import uuid
@@ -10,7 +11,7 @@ import uuid
 class NkScope(NkValue):
     
     def __repr__(self):
-        return f"NkScope({self.members})"
+        return f"NkScope({self.unreserved_members})"
 
     def __init__(
         self, 

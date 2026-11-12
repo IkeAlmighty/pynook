@@ -4,7 +4,7 @@ from tokenizer import Tokenizer
 from parser import Parser
 from ir.builder import IRBuilder
 from vm.interpreter import VirtualMachine, ThrowCompletion
-from runtime.values import NkScope, NkList, NkString
+from runtime.values import NkScope, NkList, NkString, NK_NONE
 from runtime.builtins import inject_builtins, BuiltIns
 
 def compile_stdlib():
@@ -31,12 +31,13 @@ def handle_uncaught_exception(completion):
 
         if isinstance(value, NkScope):
             message = value.resolve_local("message")
+            err_type = value.resolve_local("type").value
 
             if message is not NK_NONE:
-                print('\033[31m', message, '\033[0m', file=sys.stderr)
+                print('\033[31m', f"{err_type}: {message.value}", '\033[0m', file=sys.stderr)
 
             else: 
-                print('\033[31m', value, '\033[0m', file=sys.stderr)
+                print('\033[31m', f"{err_type}: {value}", '\033[0m', file=sys.stderr)
 
         else: 
             print(value)

@@ -429,7 +429,6 @@ class TestIntegration(unittest.TestCase):
 
         self.assertEqual(b, NkString("foo"))
         self.assertEqual(foo_a, NkString("foo"))
-        
 
     def test_operators(self):
         scope = self.load_source("""
