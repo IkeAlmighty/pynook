@@ -11,11 +11,21 @@ from tokenizer.scanners.keywords import scan_keyword, scan_boolean
 from tokenizer.scanners.operators import scan_operator
 from tokenizer.scanners.identifiers import scan_identifier
 
+from exceptions.compiler import CompilerException
+
 class Tokenizer:
 
-    def __init__(self, source=None, state=None):
+    def __init__(self, source=None, filepath=None, state=None):
+        
+        if filepath and source:
+            raise Exception("Tokenizer must specify either filepath or source, not both.")
+
+        if filepath:
+            with open(filepath) as f:
+                source = f.read()
+
         if state == None:
-            self.state = TokenizerState(source)
+            self.state = TokenizerState(source=source, filepath=filepath)
         else:
             self.state = state
     
@@ -141,4 +151,4 @@ class Tokenizer:
         if re.match(r'[a-zA-Z_]', self.state.curr_char):
             return scan_identifier(self)
         
-        raise Exception("Unknown Token")
+        raise CompilerException(f"Unknown Token '{self.state.curr_char}'", self.state.location)

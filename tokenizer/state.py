@@ -2,8 +2,8 @@ from debug.location import Location
 
 class TokenizerState:
 
-    def __init__(self, source, file=None):
-        self.file = file
+    def __init__(self, source, filepath=None):
+        self.filepath = filepath
         self.source = source
 
         self.pos = 0
@@ -44,7 +44,7 @@ class TokenizerState:
        """
          Takes a snapshot of the current tokenizer state.
        """
-       snap = TokenizerState(self.source)
+       snap = TokenizerState(self.source, self.filepath)
        snap.pos = self.pos
        snap.row = self.row
        snap.col = self.col
@@ -56,6 +56,7 @@ class TokenizerState:
         """
         Sets the values of the tokenizer to match values of another
         """
+        self.filepath = tokenizer_state.filepath
         self.pos = tokenizer_state.pos
         self.col = tokenizer_state.col
         self.row = tokenizer_state.row
@@ -66,6 +67,6 @@ class TokenizerState:
         return Location(
             row=self.row,
             col=self.col,
-            file=self.file,
+            filepath=self.filepath,
             pos=self.pos
         )

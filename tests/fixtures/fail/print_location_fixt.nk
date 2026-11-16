@@ -1,0 +1,14 @@
+
+# this file is for testing the print_location function.
+
+# it contains a compile time error on purpose.
+
+
+a: () {
+	hello: "hi!"
+}
+
+a();
+
+# compile time error:
+b = a.c

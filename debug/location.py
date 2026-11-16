@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class Location:
-    file: str | None
+    filepath: str | None
     pos: int
     row: int
     col: int
