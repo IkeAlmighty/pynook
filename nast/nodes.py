@@ -1,5 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
+from debug.location import Location
 
 class Node: pass
 class Statement(Node): pass
@@ -13,6 +14,7 @@ class File(Node):
 @dataclass
 class Block(Node):
     statements: list[ Statement ]
+    location: Location
 
 @dataclass
 class Scope(Literal):
@@ -73,44 +75,53 @@ class TryCatch(Statement):
     try_scope: Scope
     catch: Catch | None
     finally_scope: Scope | None
+    location: Location
 
 @dataclass
 class Parameters(Node):
     parameters: list[ RestParameter | Parameter ]
+    location: Location
 
 @dataclass 
 class Parameter(Node):
     identifier: Identifier
     default: Expr | None
+    location: Location
 
 @dataclass
 class RestParameter(Node):
     parameter: Parameter
+    location: Location
 
 @dataclass
 class DefineFunction(Node):
     parameters: Parameters
     scope: Scope
     has_root: bool
+    location: Location
 
 @dataclass
 class Assignment(Statement):
     target: Member | Subscript | Identifier 
     value: Expr | DefineFunction
+    location: Location
 
 @dataclass
 class Member(Expr):
     target: Member | Identifier 
     name: Identifier
+    location: Location
 
 @dataclass
 class AssignmentBatch(Node):
     assignments: list[ Assignment ]
+    location: Location
 
 @dataclass
 class While(Statement):
     expr: Expr
     scope: Scope
+    location: Location
 
 @dataclass
 class For(Statement):
@@ -133,30 +144,36 @@ class If(Statement):
     then_scope: Scope
     elifs: list[ If ]
     else_scope: Scope | None
+    location: Location
 
 @dataclass
 class Switch(Statement):
     expr: Expr
     scope: Scope
+    location: Location
 
 @dataclass
 class Case(Node):
     literal: Literal
     scope: Scope
+    location: Location
 
 @dataclass
 class Default(Node):
     scope: Scope
+    location: Location
 
 @dataclass
 class SpreadTerm(Expr):
     expr: Literal | Identifier | Call | Subscript | Member
+    location: Location
 
 @dataclass
 class BinaryOperation(Expr):
     left: Expr
     op_token: Token
     right: Expr
+    location: Location
 
 @dataclass
 class Subscript(Expr):
@@ -164,24 +181,29 @@ class Subscript(Expr):
     start: String | Integer | None
     end: Integer | None
     is_slice: bool
+    location: Location
 
 @dataclass
 class Call(Expr):
     expr: Expr
     arguments: Arguments
+    location: Location
 
 @dataclass
 class Arguments(Node):
     arguments: list[ Argument | SpreadArgument ]
+    location: Location
 
 @dataclass
 class Argument(Node):
     expr: Expr
     bind_to: Identifier | None
+    location: Location
 
 @dataclass
 class SpreadArgument(Node):
     expr: Expr
+    location: Location
 
 @dataclass
 class Integer(Literal):

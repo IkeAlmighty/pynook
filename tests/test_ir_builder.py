@@ -24,7 +24,8 @@ class TestIRBuilder(unittest.TestCase):
         self.builder = IRBuilder()
         ast = Member(
             target=Identifier("test", l),
-            name=Identifier("member_test", l)
+            name=Identifier("member_test", l),
+            location=l
         )
 
         definition = self.builder.build(ast)
@@ -35,9 +36,11 @@ class TestIRBuilder(unittest.TestCase):
         ast = Assignment(
             target=Member(
                 target=Identifier("member_name", l),
-                name=Identifier("owner_name", l)
+                name=Identifier("owner_name", l),
+                location=l
             ),
-            value=Identifier("test_value", l)
+            value=Identifier("test_value", l),
+            location=l
         )
 
         definition = self.builder.build(ast)
@@ -50,7 +53,7 @@ class TestIRBuilder(unittest.TestCase):
                     String("hello", l),
                     String("world", l),
                     String("!!!!", l),
-                ]
+                ], l
             ), l
         )
 
@@ -123,13 +126,14 @@ class TestIRBuilder(unittest.TestCase):
     def test_visit_If(self):
         node = If(
             condition=Boolean(False, l),
-            then_scope=Scope(Block([String("hello", l)]), l),
+            then_scope=Scope(Block([String("hello", l)], l), l),
             elifs=[
-                If(Boolean(False, l), Scope(Block([String("a", l)]), l), [], None), 
-                If(Boolean(False, l), Scope(Block([String("b", l)]), l), [], None), 
-                If(Boolean(False, l), Scope(Block([String("c", l)]), l), [], None)
+                If(Boolean(False, l), Scope(Block([String("a", l)], l), l), [], None, l), 
+                If(Boolean(False, l), Scope(Block([String("b", l)], l), l), [], None, l), 
+                If(Boolean(False, l), Scope(Block([String("c", l)], l), l), [], None, l)
             ],
-            else_scope=None
+            else_scope=None,
+            location=l
         )
 
         result = self.builder.build(node)
