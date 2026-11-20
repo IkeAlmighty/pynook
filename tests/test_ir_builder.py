@@ -6,7 +6,7 @@ from ir.serializer import IRSerializer
 from nast.nodes import *
 from debug.location import Location
 
-l = Location(pos=0, row=0, col=0, file=None) 
+l = Location(pos=0, row=0, col=0, filepath=None) 
 
 class TestIRBuilder(unittest.TestCase):
 

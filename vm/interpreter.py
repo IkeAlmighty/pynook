@@ -64,7 +64,7 @@ class VirtualMachine:
             self.frame.definition.instructions
         )
 
-    def create_exception(exc_type, message):
+    def create_exception(self, exc_type, message):
 
         nkscope = NkScope(parent=self.frame.scope)
         
